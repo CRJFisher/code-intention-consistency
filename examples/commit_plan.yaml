@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "ready": false,
+  "commits": [
+    {
+      "intent_id": "INT-2026-01-26-0002",
+      "intent_path": "Example root intention/Example leaf intention",
+      "subject": "feat: example intention-scoped change",
+      "body": "Replace this plan entry with real changed files.",
+      "files": ["path/to/a/changed/file"]
+    }
+  ]
+}
+
