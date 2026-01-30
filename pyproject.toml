@@ -1,0 +1,113 @@
+[project]
+name = "code-intention-consistency"
+version = "0.1.0"
+description = "Intention audit trail and consistency engine for agentic coding sessions"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+    { name = "code-intention-consistency contributors" }
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+
+# Runtime dependencies (minimal - hooks are stdlib-only)
+dependencies = []
+
+[project.optional-dependencies]
+# Development dependencies
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.2.0",
+    "pyright>=1.1.350",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "-v",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "tests/*",
+    "*/test_*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+    "@abstractmethod",
+]
+
+[tool.ruff]
+# Target Python 3.12+
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# Enable pycodestyle (E), Pyflakes (F), isort (I), and other useful rules
+select = [
+    "E",      # pycodestyle errors
+    "F",      # Pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "DTZ",    # flake8-datetimez
+    "RUF",    # Ruff-specific rules
+    "SIM",    # flake8-simplify
+]
+ignore = [
+    "E501",   # Line too long (handled by formatter)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Test files can have some relaxed rules
+"tests/**/*.py" = [
+    "E501",   # Line length
+    "S101",   # Use of assert
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+
+[tool.pyright]
+include = ["src", "tests", ".claude/hooks"]
+exclude = [
+    "**/__pycache__",
+    "**/node_modules",
+    ".venv",
+]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
