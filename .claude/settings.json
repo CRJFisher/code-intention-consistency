@@ -3,11 +3,6 @@
     "Stop": [
       {
         "hooks": [
-          {
-            "type": "command",
-            "command": "uvx run python \"$CLAUDE_PROJECT_DIR/.claude/hooks/intent_audit_stop_hook.py\"",
-            "timeout": 120
-          }
         ]
       }
     ]
