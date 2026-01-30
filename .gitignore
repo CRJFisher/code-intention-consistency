@@ -1,0 +1,14 @@
+# all __pycache__ folders
+__pycache__/
+
+# all .venv folders
+.venv/
+
+# all .env files
+.env
+
+# all .env.local files
+.env.local
+
+
+.coverage
