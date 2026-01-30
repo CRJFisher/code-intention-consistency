@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "intentions.schema.json",
+  "title": "Intention tree (JSON-compatible subset)",
+  "type": "object",
+  "required": ["root"],
+  "properties": {
+    "root": { "$ref": "#/$defs/Intention" }
+  },
+  "$defs": {
+    "Intention": {
+      "type": "object",
+      "required": ["id", "title", "kind", "status", "children"],
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "kind": {
+          "type": "string",
+          "enum": ["goal", "functionality", "implementation", "tests", "docs", "observability"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["planned", "in_progress", "implemented", "superseded", "deprecated"]
+        },
+        "created_at": { "type": "string" },
+        "rationale": { "type": "string" },
+        "constraints": { "type": ["string", "array"] },
+        "superseded_by": { "type": "string" },
+        "evidence_tests": { "type": "array", "items": { "type": "string" } },
+        "supporting_docs": { "type": "array", "items": { "type": "string" } },
+        "code_home": { "type": "array", "items": { "type": "string" } },
+        "named_scopes": { "type": "array", "items": { "type": "string" } },
+        "children": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/Intention" }
+        }
+      }
+    }
+  }
+}
+

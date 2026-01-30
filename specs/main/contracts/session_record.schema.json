@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "session_record.schema.json",
+  "title": "SessionRecord (normalized audit record)",
+  "type": "object",
+  "required": ["session_id", "timestamp", "transcript_ref", "diff_base", "diff_hash", "planner_tool", "intentions_touched", "mapping_summary"],
+  "properties": {
+    "session_id": { "type": "string" },
+    "timestamp": { "type": "string" },
+    "transcript_ref": { "type": "string" },
+    "diff_base": { "type": "string" },
+    "diff_hash": { "type": "string" },
+    "planner_tool": { "type": "string" },
+    "intentions_touched": { "type": "array", "items": { "type": "string" } },
+    "mapping_summary": { "type": "object" },
+    "notes": { "type": "string" }
+  }
+}
+
