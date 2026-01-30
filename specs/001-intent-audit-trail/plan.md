@@ -79,44 +79,54 @@ Use `/speckit.tasks` to generate `specs/main/tasks.md` from the above artifacts.
 
 ## Project Structure
 
+### Product vs Tooling Distinction
+
+This project has two distinct categories of artifacts:
+
+| Category | Location | Purpose | Deployment |
+| -------- | -------- | ------- | ---------- |
+| **PRODUCT** | `src/intention_audit/` | The tool being built | Copied to target repos |
+| **PRODUCT** | `mcp_servers/intention_audit/` | MCP tools called by sub-agents | Server for target repos |
+| **TOOLING** | `.claude/hooks/` | Hooks for developing THIS repo | N/A - local only |
+| **TOOLING** | `.claude/agents/` | Agents for developing THIS repo | N/A - local only |
+
 ### Documentation (this feature)
 
 ```text
-specs/main/
+specs/001-intent-audit-trail/
 ├── spec.md              # Feature spec (this feature)
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
 ├── quickstart.md        # Phase 1 output (/speckit.plan command)
 ├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks) - not created by /speckit.plan
+└── tasks.md             # Phase 2 output (/speckit.tasks)
 ```
 
-### Source Code + Test Target (repository root)
+### Source Code (PRODUCT - being developed)
 
 ```text
-.claude/
-├── hooks/                             # PROJECT-LOCAL HOOKS (for developing THIS repo)
-│   ├── post_edit.py                   # runs ruff + pyright on edited files
-│   ├── stop_run_tests.py              # runs all unit tests on stop
-│   └── stop_lint_all.py               # runs ruff --fix + pyright on all files on stop
-└── agents/
-    ├── intention-mapper.yaml          # sub-agent: calls map_intentions MCP tool
-    ├── commit-planner.yaml            # sub-agent: calls plan_commits MCP tool
-    ├── evidence-checker.yaml          # sub-agent: calls check_evidence MCP tool
-    ├── structure-validator.yaml       # sub-agent: calls validate_structure MCP tool
-    └── session-recorder.yaml          # sub-agent: calls record_session MCP tool
-
 src/
 └── intention_audit/
-    ├── hooks/                         # PROJECT-FOCUS HOOKS (the product we're building)
-    │   └── stop_hook.py               # intention audit stop hook (copied to sample repos for E2E tests)
+    ├── hooks/                         # Stop hook (PRODUCT - copied to target repos)
+    │   └── stop_hook.py               # intention audit stop hook
+    ├── agents/                        # Sub-agent definitions (PRODUCT - copied to target repos)
+    │   ├── README.md                  # Documents the sub-agent pattern
+    │   ├── intention-mapper.yaml      # calls map_intentions MCP tool
+    │   ├── commit-planner.yaml        # calls plan_commits MCP tool
+    │   ├── evidence-checker.yaml      # calls check_evidence MCP tool
+    │   ├── structure-validator.yaml   # calls validate_structure MCP tool
+    │   └── session-recorder.yaml      # calls record_session MCP tool
     ├── models/                        # intention tree + plan parsing models
     ├── diff/                          # hunk parsing + patch building utilities
+    ├── evidence/                      # evidence test runner
+    ├── structure/                     # code_home boundary checking
+    ├── session/                       # session recording
+    ├── docs/                          # docs linkage validation
     └── reporting/                     # intention failure context rendering
 
 mcp_servers/
-└── intention_audit/
+└── intention_audit/                   # MCP server (PRODUCT - runs as service for target repos)
     ├── server.py                      # MCP server entry point
     └── tools/
         ├── map_intentions.py          # trajectory → intentions.yaml
@@ -124,10 +134,26 @@ mcp_servers/
         ├── check_evidence.py          # run pytest, output evidence_results.json
         ├── validate_structure.py      # check code_home boundaries
         └── record_session.py          # create session record JSON
+```
 
+### Development Tooling (TOOLING - for developing THIS repo)
+
+```text
+.claude/
+├── hooks/                             # PROJECT-LOCAL HOOKS (for developing THIS repo)
+│   ├── post_edit.py                   # runs ruff + pyright on edited files
+│   ├── stop_run_tests.py              # runs all unit tests on stop
+│   └── stop_lint_all.py               # runs ruff --fix + pyright on all files on stop
+└── agents/                            # PROJECT-LOCAL AGENTS (for developing THIS repo, if any)
+    └── (none currently)
+```
+
+### Test Infrastructure
+
+```text
 tests/
 ├── fixtures/
-│   └── sample_repos/                  # sample repo templates (NO .git - created at test time)
+│   └── sample_repos/                  # Sample repo templates (NO .git, NO .claude - created at test time)
 │       ├── basic_repo/                # minimal repo for basic stop hook tests
 │       │   ├── src/feature_x/         # tiny functionality module
 │       │   ├── tests/feature_x/       # pytest evidence tests
@@ -138,13 +164,18 @@ tests/
 │           ├── docs/calculator.md     # supporting docs
 │           └── intentions.yaml        # pre-populated intentions with evidence links
 ├── unit/                              # unit tests for models, diff parsing, reporting
-├── integration/                       # integration tests for MCP tools
-└── e2e/                               # E2E tests using sample repos
-    ├── conftest.py                    # pytest fixtures: create .git, copy hooks, cleanup
+├── integration/                       # integration tests for individual MCP tools
+└── e2e/                               # E2E tests using sample repos + real MCP tools
+    ├── conftest.py                    # pytest fixtures: create .git, install product, cleanup
     ├── test_stop_hook_basic.py        # basic stop hook validation tests
     ├── test_demo_scenario.py          # MVP demo: failing evidence surfaces intention context
     └── test_structure_alignment.py    # structural alignment enforcement tests
+```
 
+### Runtime State (created by PRODUCT in target repos, NOT in this repo)
+
+```text
+# In TARGET repos (not this development repo):
 .intent_audit/
 ├── commit_plan.yaml                   # tool output; checked by stop hook
 ├── evidence_results.json              # tool output; checked by stop hook
@@ -168,20 +199,24 @@ The MVP uses a **modular sub-agent architecture** where each consistency check i
 5. **MCP tool produces output file**: Tool analyzes trajectory data and writes structured file (e.g., `intentions.yaml`)
 6. **File presence indicates completion**: On next stop attempt, hook checks for file and proceeds to next check
 
-### Sub-Agent Definitions
+### Sub-Agent Definitions (PRODUCT)
 
-Each sub-agent is defined in `.claude/agents/` with:
+Sub-agents are **PRODUCT code** defined in `src/intention_audit/agents/` (not `.claude/agents/`).
+
+During deployment to target repos, these YAML files are copied to the target repo's `.claude/agents/` directory.
+
+Each sub-agent definition specifies:
 - **Tool access**: Granted access to specific MCP tool(s)
 - **Input parameters**: Expected inputs (session_id, cwd, transcript_path, diff_base, etc.)
 - **Output specification**: File path(s) to create
 - **Prompt template**: Instructions for calling the MCP tool with structured parameters
 
-Example sub-agents:
-- `intention-mapper`: Calls `map_intentions` tool → produces `intentions.yaml`
-- `commit-planner`: Calls `plan_commits` tool → produces `.intent_audit/commit_plan.yaml`
-- `evidence-checker`: Calls `check_evidence` tool → produces `.intent_audit/evidence_results.json`
-- `structure-validator`: Calls `validate_structure` tool → produces `.intent_audit/structure_validation.json`
-- `session-recorder`: Calls `record_session` tool → produces `.intent_audit/sessions/<session_id>.json`
+Sub-agents in `src/intention_audit/agents/`:
+- `intention-mapper.yaml`: Calls `map_intentions` tool → produces `intentions.yaml`
+- `commit-planner.yaml`: Calls `plan_commits` tool → produces `.intent_audit/commit_plan.yaml`
+- `evidence-checker.yaml`: Calls `check_evidence` tool → produces `.intent_audit/evidence_results.json`
+- `structure-validator.yaml`: Calls `validate_structure` tool → produces `.intent_audit/structure_validation.json`
+- `session-recorder.yaml`: Calls `record_session` tool → produces `.intent_audit/sessions/<session_id>.json`
 
 ### Stop Hook Check Sequence
 
@@ -243,28 +278,37 @@ The **intention audit trail stop hook** - the actual product being built:
 
 **E2E Test Workflow**:
 1. Test setup creates `.git` in `tests/fixtures/sample_repos/<repo_name>/`
-2. Test copies `src/intention_audit/hooks/stop_hook.py` → sample repo `.claude/hooks/`
+2. Test installs PRODUCT artifacts into sample repo:
+   - `src/intention_audit/hooks/stop_hook.py` → sample repo `.claude/hooks/`
+   - `src/intention_audit/agents/*.yaml` → sample repo `.claude/agents/`
+   - Creates `.intent_audit/` directory structure in sample repo
+   - Configures MCP server access for real tool execution
 3. Test runs stop hook against sample repo
-4. Test cleanup deletes `.git` and `.claude/` from sample repo
+4. Test cleanup deletes `.git`, `.claude/`, and `.intent_audit/` from sample repo
 
 This separation ensures:
 - Clean development workflow (project-local hooks)
-- Testable product (project-focus hook tested in isolation)
-- No confusion about which hook enforces what
+- Testable product (project-focus artifacts tested in isolation)
+- No confusion about which artifacts are product vs tooling
 
 ### Deterministic E2E execution model
 
-E2E tests treat the **project-focus stop hook as a CLI** running in isolated sample repos:
+E2E tests treat the **PRODUCT stop hook as a CLI** running in isolated sample repos:
 
 **Test Setup** (pytest fixtures in `tests/e2e/conftest.py`):
 - Create `.git` repository in sample repo directory using `subprocess.run(["git", "init"])`
-- Copy `src/intention_audit/hooks/stop_hook.py` → sample repo `.claude/hooks/`
+- Install PRODUCT artifacts into sample repo:
+  - `src/intention_audit/hooks/stop_hook.py` → sample repo `.claude/hooks/`
+  - `src/intention_audit/agents/*.yaml` → sample repo `.claude/agents/`
+  - Create `.intent_audit/` directory structure
+- Configure MCP server access for real tool execution
 - Create initial commit with sample code
 - Apply test-specific changes (edits, regressions, etc.)
 
 **Test Execution**:
 - Invoke stop hook with **synthetic Stop-hook JSON input** on stdin
 - Run inside the sample repo working directory
+- Call real MCP tools to simulate sub-agent execution between stop-hook invocations
 - Assert on:
   - exit code (0 allow stop, 2 block)
   - stderr "block reason" content
@@ -273,25 +317,26 @@ E2E tests treat the **project-focus stop hook as a CLI** running in isolated sam
 **Test Cleanup**:
 - Delete `.git/` directory from sample repo
 - Delete `.claude/` directory from sample repo
+- Delete `.intent_audit/` directory from sample repo
 - Reset sample repo to original state
 
-**Critical**: Sample repos are **template directories** only. Their `.git` folders are:
+**Critical**: Sample repos are **template directories** only. Their runtime state is:
 - Created at test time
 - Never committed to this repository
 - Deleted after each test run
 - Excluded via `.gitignore` if accidentally created
 
-### MCP tools in E2E tests (mocked for determinism)
-The production workflow calls MCP server tools via sub-agents, but tests need deterministic output:
+### MCP tools in E2E tests (real tools, not mocks)
 
-- Provide **mock tool implementations** used in E2E that:
-  - `mock_map_intentions`: reads trajectory, writes deterministic `intentions.yaml`
-  - `mock_plan_commits`: reads diff + intentions, writes deterministic `commit_plan.yaml`
-  - `mock_check_evidence`: runs pytest, writes `evidence_results.json`
-  - `mock_validate_structure`: checks boundaries, writes `structure_validation.json`
-  - `mock_record_session`: writes `sessions/<session_id>.json`
+E2E tests use the **real MCP tools** from `mcp_servers/intention_audit/tools/` for complete integration testing:
 
-E2E harness simulates "agent ran sub-agent → sub-agent called MCP tool" by running mock tools between stop-hook invocations.
+- `map_intentions.py`: reads trajectory, writes `intentions.yaml`
+- `plan_commits.py`: reads diff + intentions, writes `.intent_audit/commit_plan.yaml`
+- `check_evidence.py`: runs pytest, writes `.intent_audit/evidence_results.json`
+- `validate_structure.py`: checks boundaries, writes `.intent_audit/structure_validation.json`
+- `record_session.py`: writes `.intent_audit/sessions/<session_id>.json`
+
+E2E harness simulates "agent ran sub-agent → sub-agent called MCP tool" by calling real MCP tools directly between stop-hook invocations. This ensures E2E tests exercise the complete, real system.
 
 ### Primary E2E demo scenario: failing evidence surfaces intention context
 

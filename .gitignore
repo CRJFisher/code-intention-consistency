@@ -12,3 +12,9 @@ __pycache__/
 
 
 .coverage
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# Intent audit runtime state (only exists in target repos, not this dev repo)
+.intent_audit/
