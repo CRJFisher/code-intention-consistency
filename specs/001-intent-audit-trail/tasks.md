@@ -56,6 +56,81 @@ This ensures we test the actual product as it would be deployed.
 
 ---
 
+## Architecture: Hook → Sub-Agent → MCP Tool (CRITICAL)
+
+**This section defines the core flow. All tasks MUST adhere to these responsibilities.**
+
+### Component Responsibilities
+
+| Component | IS Responsible For | IS NOT Responsible For |
+|-----------|-------------------|------------------------|
+| **Hook** | Checking for session-keyed artifacts; blocking with sub-agent instructions | Analysis; calling MCP tools; making decisions |
+| **Sub-Agent** | Analyzing trajectory/diff (LLM work); calling MCP tools with structured data | Writing files directly; schema validation |
+| **MCP Tool** | Validating schema; persisting data to files; returning success/error | Analysis; decision-making; reading trajectory |
+
+### The Flow
+
+```
+1. User makes changes in Claude Code session (session_id = "abc123")
+2. User attempts to stop (or post-tool-use hook triggers)
+3. HOOK executes:
+   - Reads session_id from hook input JSON
+   - Checks for .intent_audit/abc123/intentions.yaml
+   - NOT FOUND → blocks with: "Run 'intention-mapper' sub-agent with session_id=abc123, cwd=/path"
+4. TOP-LEVEL AGENT sees block message, spawns 'intention-mapper' sub-agent
+5. SUB-AGENT (LLM) executes:
+   - Reads conversation history
+   - ANALYZES: identifies intentions, hierarchy, evidence links
+   - Calls MCP tool: mcp__intention_audit__save_intentions({
+       session_id: "abc123",
+       cwd: "/path",
+       intentions: { id: "INT-...", title: "...", kind: "...", children: [...] }
+     })
+6. MCP TOOL executes:
+   - Validates intentions against schema
+   - Writes to .intent_audit/abc123/intentions.yaml
+   - Returns {success: true}
+7. User attempts to stop again
+8. HOOK re-executes:
+   - Checks for .intent_audit/abc123/intentions.yaml → FOUND
+   - Checks for .intent_audit/abc123/commit_plan.yaml → NOT FOUND
+   - Blocks with: "Run 'commit-planner' sub-agent..."
+9. Repeat until all artifacts present
+10. HOOK executes commit plan, allows stop
+```
+
+### Session-Keyed Artifacts
+
+ALL artifacts MUST be keyed by session_id:
+- `.intent_audit/<session_id>/intentions.yaml`
+- `.intent_audit/<session_id>/commit_plan.yaml`
+- `.intent_audit/<session_id>/evidence_results.json`
+- `.intent_audit/<session_id>/structure_validation.json`
+
+**Why?** Prevents stale artifacts from previous sessions causing false positives.
+
+### MCP Tools Are Persistence Endpoints
+
+MCP tools MUST NOT:
+- Analyze conversation/trajectory
+- Make decisions about intentions
+- Read or parse transcripts
+
+MCP tools MUST:
+- Accept structured data from sub-agent
+- Validate against JSON schema
+- Write to session-keyed file path
+- Return success/error
+
+### E2E Tests Simulate Sub-Agent Analysis
+
+In E2E tests, we call MCP tools directly with test data to simulate what a sub-agent would produce. This is valid because:
+- We're testing the hook → artifact → hook flow
+- The sub-agent (LLM analysis) is non-deterministic
+- We test with known/controlled intention data
+
+---
+
 ## Parallel Opportunities
 
 - **Setup phase**: T001-T006 parallelizable (directory creation)
@@ -73,7 +148,7 @@ Phases 1-3 only (T001-T036) delivers core value: intention-scoped auto-commit en
 
 ### T001: Create source directory structure
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: none
 **Parallelizable**: yes (with T002-T006)
 
@@ -102,7 +177,7 @@ src/intention_audit/
 
 ### T002: Create MCP server directory structure
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: none
 **Parallelizable**: yes (with T001, T003-T006)
 
@@ -122,7 +197,7 @@ mcp_servers/intention_audit/
 
 ### T003: Create test directory structure
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: none
 **Parallelizable**: yes (with T001-T002, T004-T006)
 
@@ -149,7 +224,7 @@ tests/
 
 ### T004: Document sub-agent pattern in product agents directory
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T001
 **Parallelizable**: yes (with T002-T003, T005-T006)
 
@@ -166,7 +241,7 @@ Create `src/intention_audit/agents/README.md` explaining:
 
 ### T005: Create .intent_audit fixture setup utility
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: none
 **Parallelizable**: yes (with T001-T004, T006)
 
@@ -186,7 +261,7 @@ Also add `.intent_audit/` to `.gitignore` in the root repo (in case of accidenta
 
 ### T006: Update pyproject.toml with dependencies
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: none
 **Parallelizable**: yes (with T001-T005)
 
@@ -204,7 +279,7 @@ Add/verify dependencies in `pyproject.toml`:
 
 ### T007: Configure pytest for test discovery
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T003, T006
 
 Create/update `pytest.ini` or `pyproject.toml [tool.pytest]` section:
@@ -219,7 +294,7 @@ Create/update `pytest.ini` or `pyproject.toml [tool.pytest]` section:
 
 ### T008: Create conftest.py for shared fixtures
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T003, T007
 
 Create `tests/conftest.py` with shared pytest fixtures:
@@ -234,7 +309,7 @@ Create `tests/conftest.py` with shared pytest fixtures:
 
 ### T009: Create E2E conftest.py with repo fixtures
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T003, T005, T008
 
 Create `tests/e2e/conftest.py` with E2E-specific fixtures:
@@ -257,7 +332,7 @@ Create `tests/e2e/conftest.py` with E2E-specific fixtures:
 
 ### T010: Verify development environment
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T006-T009
 
 Run verification commands:
@@ -278,7 +353,7 @@ Fix any configuration issues.
 
 ### T011: Implement Intention model
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T001
 **Parallelizable**: yes (with T012-T015)
 
@@ -295,7 +370,7 @@ Create `src/intention_audit/models/intention.py`:
 
 ### T012: Implement CommitPlan and CommitEntry models
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T001
 **Parallelizable**: yes (with T011, T013-T015)
 
@@ -310,7 +385,7 @@ Create `src/intention_audit/models/commit_plan.py`:
 
 ### T013: Implement SessionRecord model
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T001
 **Parallelizable**: yes (with T011-T012, T014-T015)
 
@@ -325,7 +400,7 @@ Create `src/intention_audit/models/session_record.py`:
 
 ### T014: Implement YAML/JSON loaders for models
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T011-T013
 **Parallelizable**: yes (with T015)
 
@@ -342,7 +417,7 @@ Create `src/intention_audit/models/loaders.py`:
 
 ### T015: Create basic_repo fixture content
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T003
 **Parallelizable**: yes (with T011-T014)
 
@@ -370,7 +445,7 @@ basic_repo/
 
 ### T016: Implement unit tests for Intention model
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T011
 
 Create `tests/unit/test_intention_model.py`:
@@ -386,7 +461,7 @@ Create `tests/unit/test_intention_model.py`:
 
 ### T017: Implement unit tests for CommitPlan model
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T012
 
 Create `tests/unit/test_commit_plan_model.py`:
@@ -402,7 +477,7 @@ Create `tests/unit/test_commit_plan_model.py`:
 
 ### T018: Implement unit tests for loaders
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T014
 
 Create `tests/unit/test_loaders.py`:
@@ -418,7 +493,7 @@ Create `tests/unit/test_loaders.py`:
 
 ### T019: Implement schema validation utilities
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T014
 
 Create `src/intention_audit/models/validation.py`:
@@ -434,7 +509,7 @@ Create `src/intention_audit/models/validation.py`:
 
 ### T020: Implement unit tests for schema validation
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T019
 
 Create `tests/unit/test_validation.py`:
@@ -456,7 +531,7 @@ Create `tests/unit/test_validation.py`:
 
 ### T021: Reorganize existing stop hook to new location
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T001
 
 Move and reorganize `src/intent_audit_stop_hook.py` to `src/intention_audit/hooks/stop_hook.py`:
@@ -471,7 +546,7 @@ Move and reorganize `src/intent_audit_stop_hook.py` to `src/intention_audit/hook
 
 ### T022: Implement diff utilities module
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T001
 
 Create `src/intention_audit/diff/parser.py`:
@@ -486,7 +561,7 @@ Create `src/intention_audit/diff/parser.py`:
 
 ### T023: Implement hunk parsing utilities
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T022
 
 Create `src/intention_audit/diff/hunks.py`:
@@ -501,7 +576,7 @@ Create `src/intention_audit/diff/hunks.py`:
 
 ### T024: Implement patch utilities
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T023
 
 Create `src/intention_audit/diff/patch.py`:
@@ -515,7 +590,7 @@ Create `src/intention_audit/diff/patch.py`:
 
 ### T025: Implement unit tests for diff utilities
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T022-T024
 
 Create `tests/unit/test_diff.py`:
@@ -531,7 +606,7 @@ Create `tests/unit/test_diff.py`:
 
 ### T026: Implement intention tree utilities
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T011, T014
 
 Create `src/intention_audit/models/tree.py`:
@@ -547,7 +622,7 @@ Create `src/intention_audit/models/tree.py`:
 
 ### T027: Implement unit tests for intention tree utilities
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T026
 
 Create `tests/unit/test_intention_tree.py`:
@@ -563,7 +638,7 @@ Create `tests/unit/test_intention_tree.py`:
 
 ### T028: Implement commit message builder
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T012
 
 Create `src/intention_audit/hooks/commit_builder.py`:
@@ -578,7 +653,7 @@ Create `src/intention_audit/hooks/commit_builder.py`:
 
 ### T029: Implement unit tests for commit message builder
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T028
 
 Create `tests/unit/test_commit_builder.py`:
@@ -592,89 +667,150 @@ Create `tests/unit/test_commit_builder.py`:
 
 ---
 
-### T030: Refactor stop hook to use new modules
+### T030: Refactor stop hook for session-keyed artifacts
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T021-T024, T026, T028
 
-Update `src/intention_audit/hooks/stop_hook.py`:
+Update `src/intention_audit/hooks/stop_hook.py` to implement the correct architecture:
 
-- Import and use diff utilities from `diff/`
-- Import and use models from `models/`
-- Import and use commit builder from `hooks/commit_builder.py`
-- Maintain backward compatibility with existing behavior
+**CRITICAL changes:**
 
-**Acceptance**: Refactored hook passes existing tests.
+1. **Read session_id from hook input JSON**:
+   - Hook input includes `session_id` field
+   - All artifact paths must be keyed: `.intent_audit/<session_id>/`
+
+2. **Check for session-keyed artifacts**:
+   - `.intent_audit/<session_id>/intentions.yaml`
+   - `.intent_audit/<session_id>/commit_plan.yaml`
+   - (Later: evidence_results.json, structure_validation.json)
+
+3. **Block with sub-agent instructions**:
+   - When artifact missing, exit code 2 with message:
+   - `"Run 'intention-mapper' sub-agent with session_id=<id>, cwd=<path>"`
+   - Message tells top-level agent WHICH sub-agent and WHAT inputs
+
+4. **Hook does NOT call MCP tools**:
+   - Hook only checks for artifacts and blocks/allows
+   - Sub-agents (spawned by top-level agent) call MCP tools
+
+5. **Import and use new modules**:
+   - Diff utilities from `diff/`
+   - Models from `models/`
+   - Commit builder from `hooks/commit_builder.py`
+
+**Acceptance**:
+- Hook reads session_id from input
+- Hook checks session-keyed artifact paths
+- Hook blocks with correct sub-agent instructions
+- Hook does NOT analyze or call MCP tools
 
 ---
 
-### T031: Implement map_intentions MCP tool
+### T031: Implement save_intentions MCP tool (persistence endpoint)
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T002, T011
 **Parallelizable**: yes (with T032-T033)
 
-Create `mcp_servers/intention_audit/tools/map_intentions.py`:
+Create `mcp_servers/intention_audit/tools/save_intentions.py`:
 
-- Reads trajectory input (session_id, transcript_path, cwd)
-- Analyzes conversation to identify user intentions
-- Produces `intentions.yaml` with intention tree
-- Called by E2E tests to simulate sub-agent execution
+**CRITICAL**: This tool is a PERSISTENCE ENDPOINT, not an analyzer.
 
-**Acceptance**: MCP tool produces valid intentions.yaml from trajectory input.
+The tool MUST:
+- Accept structured intention data from sub-agent: `{session_id, cwd, intentions: {...}}`
+- Validate intentions against JSON schema
+- Write to `.intent_audit/<session_id>/intentions.yaml`
+- Return `{success: true, path: "..."}` or `{success: false, error: "..."}`
+
+The tool MUST NOT:
+- Analyze conversation/trajectory (sub-agent does this)
+- Read transcripts (sub-agent does this)
+- Make decisions about intention structure (sub-agent does this)
+
+**Acceptance**: MCP tool validates and persists intention data passed to it.
 
 ---
 
-### T032: Implement plan_commits MCP tool
+### T032: Implement save_commit_plan MCP tool (persistence endpoint)
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T002, T012
 **Parallelizable**: yes (with T031, T033)
 
-Create `mcp_servers/intention_audit/tools/plan_commits.py`:
+Create `mcp_servers/intention_audit/tools/save_commit_plan.py`:
 
-- Reads diff + intentions.yaml
-- Maps each diff hunk to an intention
-- Produces `.intent_audit/commit_plan.yaml` with full coverage
-- Assigns patches to intention-scoped commits
+**CRITICAL**: This tool is a PERSISTENCE ENDPOINT, not an analyzer.
 
-**Acceptance**: MCP tool produces valid commit_plan.yaml covering 100% of diff hunks.
+The tool MUST:
+- Accept structured plan data from sub-agent: `{session_id, cwd, plan: {...}}`
+- Validate plan against JSON schema
+- Write to `.intent_audit/<session_id>/commit_plan.yaml`
+- Return `{success: true, path: "..."}` or `{success: false, error: "..."}`
+
+The tool MUST NOT:
+- Map diff hunks to intentions (sub-agent does this)
+- Analyze the diff (sub-agent does this)
+- Decide which files go in which commit (sub-agent does this)
+
+**Acceptance**: MCP tool validates and persists commit plan data passed to it.
 
 ---
 
 ### T033: Create intention-mapper sub-agent definition (PRODUCT)
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T004
 **Parallelizable**: yes (with T031-T032, T034)
 
 Create `src/intention_audit/agents/intention-mapper.yaml`:
 
-- Purpose: Call `map_intentions` MCP tool
-- Inputs: session_id, cwd, transcript_path
-- Output: intentions.yaml
+**CRITICAL**: The sub-agent (LLM) does the analysis, then calls the MCP tool with structured data.
+
+The sub-agent MUST:
+- Read conversation history/trajectory
+- ANALYZE: identify user intentions, hierarchy, evidence links, code_home boundaries
+- Build a structured intention tree
+- Call `mcp__intention_audit__save_intentions` with the analyzed data
+
+Sub-agent definition includes:
+- Tool access: `mcp__intention_audit__save_intentions`
+- Inputs from hook: `session_id`, `cwd`
+- Analysis prompt: how to identify intentions from conversation
+- Output: structured data passed TO the MCP tool
 
 **Note**: This is PRODUCT code - gets copied to target repos' `.claude/agents/` during deployment.
 
-**Acceptance**: YAML definition valid and documented.
+**Acceptance**: YAML definition clearly documents that sub-agent ANALYZES, then calls tool with data.
 
 ---
 
 ### T034: Create commit-planner sub-agent definition (PRODUCT)
 
-**Status**: pending
+**Status**: [X] completed
 **Dependencies**: T004
 **Parallelizable**: yes (with T031-T033)
 
 Create `src/intention_audit/agents/commit-planner.yaml`:
 
-- Purpose: Call `plan_commits` MCP tool
-- Inputs: session_id, cwd, diff_base, intentions.yaml
-- Output: .intent_audit/commit_plan.yaml
+**CRITICAL**: The sub-agent (LLM) does the analysis, then calls the MCP tool with structured data.
+
+The sub-agent MUST:
+- Read current diff (git diff HEAD)
+- Read intentions.yaml
+- ANALYZE: map each change to an intention, determine commit boundaries
+- Build a structured commit plan
+- Call `mcp__intention_audit__save_commit_plan` with the analyzed data
+
+Sub-agent definition includes:
+- Tool access: `mcp__intention_audit__save_commit_plan`, basic git/file tools
+- Inputs from hook: `session_id`, `cwd`, `diff_base`
+- Analysis prompt: how to map changes to intentions
+- Output: structured data passed TO the MCP tool
 
 **Note**: This is PRODUCT code - gets copied to target repos' `.claude/agents/` during deployment.
 
-**Acceptance**: YAML definition valid and documented.
+**Acceptance**: YAML definition clearly documents that sub-agent ANALYZES, then calls tool with data.
 
 ---
 
@@ -685,12 +821,22 @@ Create `src/intention_audit/agents/commit-planner.yaml`:
 
 Create `tests/e2e/test_stop_hook_basic.py`:
 
-- Test 1: Uncommitted change without plan → hook blocks with instructions
-- Test 2: Valid plan with full coverage → hook creates commits with trailers
-- Test 3: Plan missing coverage → hook blocks with coverage error
-- Test 4: No changes → hook allows stop
-- Calls real MCP tools between stop-hook invocations (simulating sub-agent execution)
-- Uses `install_product_artifacts` fixture to deploy PRODUCT to sample repo
+**E2E Test Approach**: We simulate the sub-agent by calling MCP tools directly with test data.
+This is valid because we're testing the hook→artifact→hook flow, not the LLM analysis.
+
+Test flow:
+1. Set up sample repo with uncommitted changes
+2. Run stop hook → verify it blocks with "run intention-mapper with session_id=X"
+3. Call `save_intentions` MCP tool with test intention data (simulating sub-agent)
+4. Run stop hook → verify it blocks with "run commit-planner"
+5. Call `save_commit_plan` MCP tool with test plan data (simulating sub-agent)
+6. Run stop hook → verify it passes and creates commits
+
+Test cases:
+- Test 1: Uncommitted change, no artifacts → hook blocks with sub-agent instructions
+- Test 2: Valid session-keyed artifacts with full coverage → hook creates commits with trailers
+- Test 3: Commit plan missing coverage → hook blocks with coverage error
+- Test 4: No changes → hook allows stop immediately
 
 **Acceptance**: `uv run pytest -m e2e tests/e2e/test_stop_hook_basic.py` passes.
 
@@ -703,10 +849,11 @@ Create `tests/e2e/test_stop_hook_basic.py`:
 
 Create `tests/e2e/test_commit_trailers.py`:
 
-- After successful stop, verify:
-  - `Intent-Id` trailer present in commit
-  - `Intent-Path` trailer present (if provided)
-  - Commits can be traced via `git log --format="%B"` + trailer extraction
+After successful stop-gate pass, verify commits have correct trailers:
+- `Intent-Id` trailer present in every commit
+- `Intent-Path` trailer present (if provided in plan)
+- `Functionality-Intent-Id` trailer present (if provided in plan)
+- Commits can be traced via `git log --format="%B"` + trailer extraction
 
 **Acceptance**: `uv run pytest -m e2e tests/e2e/test_commit_trailers.py` passes.
 
@@ -841,20 +988,29 @@ demo_repo/
 
 ---
 
-### T044: Implement check_evidence MCP tool
+### T044: Implement run_evidence_tests MCP tool
 
 **Status**: pending
 **Dependencies**: T002, T037
 **Parallelizable**: yes (with T045)
 
-Create `mcp_servers/intention_audit/tools/check_evidence.py`:
+Create `mcp_servers/intention_audit/tools/run_evidence_tests.py`:
 
-- Reads test selectors from intentions/commit plan
-- Runs pytest on specified selectors
-- Produces `.intent_audit/evidence_results.json`
-- Returns actual test results with pass/fail status
+**Note**: This tool is slightly different - it EXECUTES tests, but the sub-agent decides WHICH tests.
 
-**Acceptance**: MCP tool runs real tests and produces valid evidence_results.json.
+The tool MUST:
+- Accept test selectors from sub-agent: `{session_id, cwd, test_selectors: [...]}`
+- Run pytest on the specified selectors
+- Capture test results (pass/fail/error, output)
+- Write to `.intent_audit/<session_id>/evidence_results.json`
+- Return `{success: true, all_passed: bool, results: [...]}` or `{success: false, error: "..."}`
+
+The tool MUST NOT:
+- Decide which tests to run (sub-agent does this based on intentions)
+- Analyze test failures (sub-agent does this)
+- Make decisions about repair vs supersede (top-level agent does this)
+
+**Acceptance**: MCP tool runs specified tests and persists results.
 
 ---
 
@@ -866,11 +1022,23 @@ Create `mcp_servers/intention_audit/tools/check_evidence.py`:
 
 Create `src/intention_audit/agents/evidence-checker.yaml`:
 
-- Purpose: Call `check_evidence` MCP tool
-- Inputs: session_id, cwd, test_selectors
-- Output: .intent_audit/evidence_results.json
+**CRITICAL**: The sub-agent (LLM) determines which tests to run, then calls the MCP tool.
+
+The sub-agent MUST:
+- Read intentions.yaml and commit_plan.yaml
+- ANALYZE: identify evidence_tests linked to impacted intentions
+- Determine which test selectors to run
+- Call `mcp__intention_audit__run_evidence_tests` with test selectors
+
+Sub-agent definition includes:
+- Tool access: `mcp__intention_audit__run_evidence_tests`
+- Inputs from hook: `session_id`, `cwd`
+- Analysis prompt: how to identify impacted evidence tests
+- Output: structured test selector list passed TO the MCP tool
 
 **Note**: This is PRODUCT code - gets copied to target repos' `.claude/agents/` during deployment.
+
+**Acceptance**: YAML definition clearly documents that sub-agent DETERMINES tests, tool RUNS them.
 
 **Acceptance**: YAML definition valid and documented.
 
@@ -1026,20 +1194,28 @@ Create `src/intention_audit/reporting/structure_renderer.py`:
 
 ---
 
-### T055: Implement validate_structure MCP tool
+### T055: Implement save_structure_validation MCP tool (persistence endpoint)
 
 **Status**: pending
 **Dependencies**: T002, T051
 **Parallelizable**: yes (with T056)
 
-Create `mcp_servers/intention_audit/tools/validate_structure.py`:
+Create `mcp_servers/intention_audit/tools/save_structure_validation.py`:
 
-- Reads intentions.yaml and commit_plan.yaml
-- Checks code_home boundaries for each commit entry
-- Produces `.intent_audit/structure_validation.json`
-- Returns violations with suggested fixes
+**CRITICAL**: This tool is a PERSISTENCE ENDPOINT, not an analyzer.
 
-**Acceptance**: MCP tool produces valid structure_validation.json with boundary checks.
+The tool MUST:
+- Accept validation results from sub-agent: `{session_id, cwd, validation: {...}}`
+- Validate against JSON schema
+- Write to `.intent_audit/<session_id>/structure_validation.json`
+- Return `{success: true, path: "..."}` or `{success: false, error: "..."}`
+
+The tool MUST NOT:
+- Check code_home boundaries (sub-agent does this)
+- Analyze file paths (sub-agent does this)
+- Suggest fixes (sub-agent does this)
+
+**Acceptance**: MCP tool validates and persists structure validation results passed to it.
 
 ---
 
@@ -1051,11 +1227,24 @@ Create `mcp_servers/intention_audit/tools/validate_structure.py`:
 
 Create `src/intention_audit/agents/structure-validator.yaml`:
 
-- Purpose: Call `validate_structure` MCP tool
-- Inputs: session_id, cwd, intentions.yaml, commit_plan.yaml
-- Output: .intent_audit/structure_validation.json
+**CRITICAL**: The sub-agent (LLM) does the analysis, then calls the MCP tool with structured data.
+
+The sub-agent MUST:
+- Read intentions.yaml and commit_plan.yaml
+- ANALYZE: check each commit entry's paths against functionality's code_home
+- Identify violations and suggested fixes
+- Build a structured validation result
+- Call `mcp__intention_audit__save_structure_validation` with the analyzed data
+
+Sub-agent definition includes:
+- Tool access: `mcp__intention_audit__save_structure_validation`, basic file tools
+- Inputs from hook: `session_id`, `cwd`
+- Analysis prompt: how to check code_home boundaries
+- Output: structured validation data passed TO the MCP tool
 
 **Note**: This is PRODUCT code - gets copied to target repos' `.claude/agents/` during deployment.
+
+**Acceptance**: YAML definition clearly documents that sub-agent ANALYZES, then calls tool with data.
 
 **Acceptance**: YAML definition valid and documented.
 
@@ -1155,18 +1344,27 @@ Create `src/intention_audit/session/recorder.py`:
 
 ---
 
-### T063: Implement record_session MCP tool
+### T063: Implement save_session_record MCP tool (persistence endpoint)
 
 **Status**: pending
 **Dependencies**: T002, T062
 
-Create `mcp_servers/intention_audit/tools/record_session.py`:
+Create `mcp_servers/intention_audit/tools/save_session_record.py`:
 
-- Reads session_id, transcript_ref, mapping summary
-- Creates normalized session record
-- Writes to `.intent_audit/sessions/<session_id>.json`
+**CRITICAL**: This tool is a PERSISTENCE ENDPOINT, not an analyzer.
 
-**Acceptance**: MCP tool produces valid session_record.json with all required fields.
+The tool MUST:
+- Accept session record from sub-agent: `{session_id, cwd, record: {...}}`
+- Validate against JSON schema
+- Write to `.intent_audit/<session_id>/session_record.json`
+- Return `{success: true, path: "..."}` or `{success: false, error: "..."}`
+
+The tool MUST NOT:
+- Analyze the session (sub-agent does this)
+- Compute transcript hashes (sub-agent does this)
+- Summarize mapping (sub-agent does this)
+
+**Acceptance**: MCP tool validates and persists session record data passed to it.
 
 ---
 
@@ -1177,13 +1375,23 @@ Create `mcp_servers/intention_audit/tools/record_session.py`:
 
 Create `src/intention_audit/agents/session-recorder.yaml`:
 
-- Purpose: Call `record_session` MCP tool
-- Inputs: session_id, transcript_ref, mapping_summary
-- Output: .intent_audit/sessions/<session_id>.json
+**CRITICAL**: The sub-agent (LLM) summarizes the session, then calls the MCP tool with structured data.
+
+The sub-agent MUST:
+- Read session context (transcript_ref, intentions touched, mapping summary)
+- ANALYZE: summarize the session, compute hashes/references
+- Build a structured session record
+- Call `mcp__intention_audit__save_session_record` with the analyzed data
+
+Sub-agent definition includes:
+- Tool access: `mcp__intention_audit__save_session_record`
+- Inputs from hook: `session_id`, `cwd`, `transcript_ref`
+- Analysis prompt: how to summarize session for audit
+- Output: structured session record passed TO the MCP tool
 
 **Note**: This is PRODUCT code - gets copied to target repos' `.claude/agents/` during deployment.
 
-**Acceptance**: YAML definition valid and documented.
+**Acceptance**: YAML definition clearly documents that sub-agent SUMMARIZES, then calls tool with data.
 
 ---
 

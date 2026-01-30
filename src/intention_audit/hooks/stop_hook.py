@@ -2,6 +2,11 @@
 """
 Claude Code Stop hook: intention→edit coverage + auto-commit.
 
+IMPORTANT: Target repositories MUST add `.intent_audit/` to their .gitignore.
+If not gitignored, the artifact files will appear as untracked changes, which
+changes the diff hash, requiring new artifacts—creating an infinite loop where
+the hook never unblocks.
+
 MVP constraints:
 - Uses file-level mapping (each changed file belongs to exactly one commit entry).
 - Avoids external dependencies by requiring the commit plan file to be JSON
@@ -10,6 +15,7 @@ MVP constraints:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -20,14 +26,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-HOOK_VERSION = "0.1.0"
+HOOK_VERSION = "0.4.0"
 
-INTENTIONS_FILE_REL = "intentions.yaml"
-PLAN_FILE_REL = ".intent_audit/commit_plan.yaml"
+# Session-keyed artifact paths (relative to project_dir / .intent_audit / <session_id>)
+INTENTIONS_FILE_NAME = "intentions.yaml"
+PLAN_FILE_NAME = "commit_plan.yaml"
 CONFIG_FILE_REL = ".intent_audit/config.json"
 
-DEFAULT_MCP_TOOL_NAME = "mcp__intention_audit__plan_commits"
-MCP_TOOL_ENV_VAR = "INTENTION_AUDIT_MCP_TOOL"
+# Sub-agent names for blocking messages
+INTENTION_MAPPER_AGENT = "intention-mapper"
+COMMIT_PLANNER_AGENT = "commit-planner"
 
 INTERNAL_PATH_PREFIXES = (
     ".intent_audit/",
@@ -37,16 +45,20 @@ INTERNAL_PATH_PREFIXES = (
 
 @dataclass(frozen=True)
 class GitResult:
+    """Result from running a git command."""
+
     stdout: str
     stderr: str
     exit_code: int
 
 
 def _eprint(message: str) -> None:
+    """Print message to stderr."""
     print(message, file=sys.stderr)
 
 
 def _read_hook_input() -> dict[str, Any]:
+    """Read and parse hook input from stdin."""
     try:
         return json.load(sys.stdin)
     except Exception:
@@ -54,6 +66,7 @@ def _read_hook_input() -> dict[str, Any]:
 
 
 def _project_dir(hook_input: dict[str, Any]) -> Path:
+    """Determine the project directory from environment or hook input."""
     env_project_dir = os.environ.get("CLAUDE_PROJECT_DIR")
     if env_project_dir:
         return Path(env_project_dir)
@@ -64,6 +77,7 @@ def _project_dir(hook_input: dict[str, Any]) -> Path:
 
 
 def _run_git(project_dir: Path, args: Sequence[str]) -> GitResult:
+    """Run a git command and return the result."""
     proc = subprocess.run(
         ["git", *args],
         cwd=str(project_dir),
@@ -74,6 +88,7 @@ def _run_git(project_dir: Path, args: Sequence[str]) -> GitResult:
 
 
 def _git_ok(project_dir: Path, args: Sequence[str]) -> str:
+    """Run a git command and return stdout, raising on failure."""
     result = _run_git(project_dir, args)
     if result.exit_code != 0:
         raise RuntimeError(
@@ -83,31 +98,56 @@ def _git_ok(project_dir: Path, args: Sequence[str]) -> str:
 
 
 def _is_git_repo(project_dir: Path) -> bool:
+    """Check if the directory is a git repository."""
     result = _run_git(project_dir, ["rev-parse", "--is-inside-work-tree"])
     return result.exit_code == 0 and result.stdout.strip() == "true"
 
 
-def _get_mcp_tool_name(project_dir: Path) -> str:
-    env_tool = os.environ.get(MCP_TOOL_ENV_VAR)
-    if env_tool:
-        return env_tool.strip()
+def _get_session_id(hook_input: dict[str, Any]) -> str:
+    """Get session_id from hook input."""
+    session_id = hook_input.get("session_id")
+    if isinstance(session_id, str) and session_id.strip():
+        return session_id.strip()
+    # Fallback to environment variable
+    env_session = os.environ.get("CLAUDE_SESSION_ID")
+    if env_session:
+        return env_session.strip()
+    # Final fallback: generate a simple ID (not ideal, but prevents crash)
+    import hashlib
+    import time
+    return hashlib.sha256(f"{time.time()}".encode()).hexdigest()[:12]
 
-    config_path = project_dir / CONFIG_FILE_REL
-    if not config_path.exists():
-        return DEFAULT_MCP_TOOL_NAME
 
-    try:
-        config = json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception:
-        return DEFAULT_MCP_TOOL_NAME
+def _compute_diff_hash(project_dir: Path) -> str:
+    """
+    Compute a stable hash of uncommitted changes.
 
-    tool_name = config.get("mcp_tool_name")
-    if isinstance(tool_name, str) and tool_name.strip():
-        return tool_name.strip()
-    return DEFAULT_MCP_TOOL_NAME
+    Combines git diff HEAD (staged + unstaged changes) and git status
+    (to capture untracked files) into a deterministic hash. This allows
+    artifacts to be keyed by the specific set of changes they describe.
+
+    Returns:
+        16-character hex string (truncated SHA-256).
+    """
+    # Get diff of all changes (staged and unstaged) against HEAD
+    diff_output = _git_ok(project_dir, ["diff", "HEAD"])
+
+    # Get status to capture untracked files (which don't appear in diff)
+    # Use --porcelain=v1 for stable machine-readable output
+    status_output = _git_ok(project_dir, ["status", "--porcelain=v1"])
+
+    # Combine and hash
+    combined = f"{diff_output}\n---STATUS---\n{status_output}"
+    return hashlib.sha256(combined.encode()).hexdigest()[:16]
+
+
+def _get_artifact_dir(project_dir: Path, session_id: str, diff_hash: str) -> Path:
+    """Get the session+diff keyed artifact directory."""
+    return project_dir / ".intent_audit" / session_id / diff_hash
 
 
 def _is_internal_path(rel_path: str) -> bool:
+    """Check if a path is an internal/infrastructure path."""
     return any(rel_path.startswith(prefix) for prefix in INTERNAL_PATH_PREFIXES)
 
 
@@ -159,22 +199,26 @@ def _parse_porcelain_v1_z(output: str) -> list[str]:
 
 
 def _get_relevant_changed_paths(project_dir: Path) -> list[str]:
+    """Get list of changed files, excluding internal paths."""
     out = _git_ok(project_dir, ["status", "--porcelain=v1", "-z", "--untracked-files=all"])
     paths = _parse_porcelain_v1_z(out)
     return [p for p in paths if p and not _is_internal_path(p)]
 
 
 def _get_staged_paths(project_dir: Path) -> list[str]:
+    """Get list of staged files."""
     out = _git_ok(project_dir, ["diff", "--cached", "--name-only", "-z"])
     return [p for p in out.split("\0") if p]
 
 
 def _block(message: str) -> None:
+    """Print block message and exit with code 2."""
     _eprint(message.rstrip() + "\n")
     sys.exit(2)
 
 
 def _format_bullets(lines: Iterable[str], limit: int = 60) -> str:
+    """Format a list of strings as bullet points."""
     items = list(lines)
     shown = items[:limit]
     remaining = len(items) - len(shown)
@@ -186,6 +230,8 @@ def _format_bullets(lines: Iterable[str], limit: int = 60) -> str:
 
 def _load_plan(plan_path: Path) -> dict[str, Any]:
     """
+    Load and parse the commit plan file.
+
     MVP: plan file must be JSON (YAML JSON-subset is accepted).
     """
     try:
@@ -197,6 +243,7 @@ def _load_plan(plan_path: Path) -> dict[str, Any]:
 
 
 def _validate_rel_path(path: str) -> None:
+    """Validate that a path is relative and safe."""
     if path.startswith("/"):
         raise ValueError(f"Path must be repo-relative, got absolute: {path}")
     if ".." in Path(path).parts:
@@ -204,6 +251,7 @@ def _validate_rel_path(path: str) -> None:
 
 
 def _intent_id_exists(intentions_text: str, intent_id: str) -> bool:
+    """Check if an intent_id exists in the intentions file text."""
     # Accept either YAML-ish `id: INT-...` or JSON `"id": "INT-..."`
     # Keep it simple for MVP: textual membership is good enough.
     if intent_id in intentions_text:
@@ -213,15 +261,19 @@ def _intent_id_exists(intentions_text: str, intent_id: str) -> bool:
 
 
 def _build_commit_message(entry: dict[str, Any]) -> str:
+    """Build a commit message with intention trailers from an entry."""
     intent_id = str(entry.get("intent_id", "")).strip()
     subject = str(entry.get("subject") or entry.get("title") or f"chore: {intent_id}").strip()
     body = str(entry.get("body") or "").rstrip()
     intent_path = str(entry.get("intent_path") or "").strip()
+    functionality_intent_id = str(entry.get("functionality_intent_id") or "").strip()
     confidence = entry.get("intent_confidence")
 
     trailers: list[str] = [f"Intent-Id: {intent_id}"]
     if intent_path:
         trailers.append(f"Intent-Path: {intent_path}")
+    if functionality_intent_id:
+        trailers.append(f"Functionality-Intent-Id: {functionality_intent_id}")
     if isinstance(confidence, (int, float, str)) and str(confidence).strip():
         trailers.append(f"Intent-Confidence: {str(confidence).strip()}")
 
@@ -233,9 +285,10 @@ def _build_commit_message(entry: dict[str, Any]) -> str:
 
 
 def main() -> None:
+    """Main entry point for the stop hook."""
     hook_input = _read_hook_input()
     project_dir = _project_dir(hook_input)
-    mcp_tool_name = _get_mcp_tool_name(project_dir)
+    session_id = _get_session_id(hook_input)
 
     if not _is_git_repo(project_dir):
         _block(
@@ -245,8 +298,8 @@ def main() -> None:
                     "",
                     "Initialize Git first (example):",
                     "- git init",
-                    "- git add .",
-                    "- git commit -m \"chore: initial commit\"",
+                    '- git add .',
+                    '- git commit -m "chore: initial commit"',
                     "",
                     "Then rerun the agent; this hook will enforce intention-tagged commits.",
                 ]
@@ -276,45 +329,65 @@ def main() -> None:
         # Nothing to map/commit.
         sys.exit(0)
 
-    intentions_path = project_dir / INTENTIONS_FILE_REL
-    plan_path = project_dir / PLAN_FILE_REL
+    # Compute diff hash for artifact keying
+    # This ensures artifacts are tied to a specific set of changes
+    diff_hash = _compute_diff_hash(project_dir)
 
-    missing_files: list[str] = []
+    # Session+diff keyed artifact paths
+    artifact_dir = _get_artifact_dir(project_dir, session_id, diff_hash)
+    intentions_path = artifact_dir / INTENTIONS_FILE_NAME
+    plan_path = artifact_dir / PLAN_FILE_NAME
+
+    # Check for intentions artifact first
     if not intentions_path.exists():
-        missing_files.append(INTENTIONS_FILE_REL)
-    if not plan_path.exists():
-        missing_files.append(PLAN_FILE_REL)
-
-    if missing_files:
         _block(
             "\n".join(
                 [
-                    "Intention Audit Stop Hook blocked: missing intention tracking files.",
+                    "Intention Audit Stop Hook blocked: missing intentions artifact.",
+                    "",
+                    f"Session ID: {session_id}",
+                    f"Diff hash: {diff_hash}",
+                    f"Expected artifact: {intentions_path.relative_to(project_dir)}",
                     "",
                     "Changed files that must be mapped to intentions:",
                     _format_bullets(relevant_changed_paths),
                     "",
-                    "Missing required file(s):",
-                    _format_bullets(missing_files),
+                    "Next step:",
+                    f"Run '{INTENTION_MAPPER_AGENT}' sub-agent with:",
+                    f"  session_id={session_id}",
+                    f"  diff_hash={diff_hash}",
+                    f"  cwd={project_dir}",
+                    "",
+                    "The sub-agent will analyze the conversation, identify user intentions,",
+                    "and call the save_intentions MCP tool to persist the intention tree.",
+                ]
+            )
+        )
+
+    # Check for commit plan artifact
+    if not plan_path.exists():
+        _block(
+            "\n".join(
+                [
+                    "Intention Audit Stop Hook blocked: missing commit plan artifact.",
+                    "",
+                    f"Session ID: {session_id}",
+                    f"Diff hash: {diff_hash}",
+                    f"Expected artifact: {plan_path.relative_to(project_dir)}",
+                    f"Intentions artifact: {intentions_path.relative_to(project_dir)} (found)",
+                    "",
+                    "Changed files that must be mapped to intentions:",
+                    _format_bullets(relevant_changed_paths),
                     "",
                     "Next step:",
-                    f"- Call MCP tool `{mcp_tool_name}` to (a) detect user intentions and (b) produce a per-commit mapping of changed files.",
-                    f"- Write the mapping to `{PLAN_FILE_REL}` (JSON; YAML JSON-subset is OK).",
+                    f"Run '{COMMIT_PLANNER_AGENT}' sub-agent with:",
+                    f"  session_id={session_id}",
+                    f"  diff_hash={diff_hash}",
+                    f"  cwd={project_dir}",
                     "",
-                    "Required schema (minimal):",
-                    "{",
-                    '  "version": 1,',
-                    '  "ready": true,',
-                    '  "commits": [',
-                    "    {",
-                    '      "intent_id": "INT-YYYY-MM-DD-NNNN",',
-                    '      "intent_path": "Goal/Feature/Leaf",',
-                    '      "subject": "feat: ...",',
-                    '      "body": "optional",',
-                    f'      "files": ["{relevant_changed_paths[0]}"]',
-                    "    }",
-                    "  ]",
-                    "}",
+                    "The sub-agent will analyze the diff, read intentions.yaml,",
+                    "map each change to an intention, and call the save_commit_plan",
+                    "MCP tool to persist the commit plan.",
                 ]
             )
         )
@@ -329,7 +402,7 @@ def main() -> None:
                     "",
                     str(e),
                     "",
-                    f"Fix `{PLAN_FILE_REL}` (MVP requires JSON; YAML JSON-subset is accepted).",
+                    "Fix the commit plan file (MVP requires JSON; YAML JSON-subset is accepted).",
                 ]
             )
         )
@@ -353,7 +426,7 @@ def main() -> None:
                 [
                     "Intention Audit Stop Hook blocked: commit plan has no commits.",
                     "",
-                    f"Expected `{PLAN_FILE_REL}` to contain a non-empty `commits` array.",
+                    "Expected the commit plan to contain a non-empty `commits` array.",
                 ]
             )
         )
@@ -364,7 +437,7 @@ def main() -> None:
                 [
                     "Intention Audit Stop Hook blocked: commit plan is not marked ready.",
                     "",
-                    f"Set `\"ready\": true` in `{PLAN_FILE_REL}` once the intention→file mapping is complete and reviewed.",
+                    'Set `"ready": true` in the commit plan once the intention→file mapping is complete and reviewed.',
                 ]
             )
         )
@@ -426,7 +499,7 @@ def main() -> None:
                     "Missing intent_id(s):",
                     _format_bullets(missing_intents),
                     "",
-                    f"Fix `{INTENTIONS_FILE_REL}` or regenerate the plan via `{mcp_tool_name}`.",
+                    f"Fix intentions.yaml or re-run the '{INTENTION_MAPPER_AGENT}' and '{COMMIT_PLANNER_AGENT}' sub-agents.",
                 ]
             )
         )
@@ -463,7 +536,8 @@ def main() -> None:
             lines.extend(["Planned file(s) that are not currently changed:", _format_bullets(extra), ""])
         lines.extend(
             [
-                f"Fix `{PLAN_FILE_REL}` (or regenerate it via `{mcp_tool_name}`) so commits[].files exactly match the changed files above.",
+                f"Re-run the '{COMMIT_PLANNER_AGENT}' sub-agent (session_id={session_id}, diff_hash={diff_hash})",
+                "so commits[].files exactly match the changed files above.",
             ]
         )
         _block("\n".join(lines))
@@ -525,7 +599,7 @@ def main() -> None:
                     "Remaining changed files:",
                     _format_bullets(remaining),
                     "",
-                    f"Regenerate `{PLAN_FILE_REL}` via `{mcp_tool_name}` to cover the remaining changes.",
+                    f"Re-run the '{COMMIT_PLANNER_AGENT}' sub-agent (session_id={session_id}, diff_hash={diff_hash}) to cover the remaining changes.",
                 ]
             )
         )
@@ -549,4 +623,3 @@ if __name__ == "__main__":
                 ]
             )
         )
-

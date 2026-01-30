@@ -16,13 +16,13 @@ At a high level:
 
 ## Data contract (MVP)
 
-The stop hook looks for these files:
+The stop hook looks for these files under `.intent_audit/<session_id>/<diff_hash>/`:
 
 - `intentions.yaml`
-  - Canonical intention tree (versioned in Git)
+  - Intention tree for this session/diff
   - MVP only requires that each `intent_id` referenced by the commit plan exists
     somewhere in this file (text match).
-- `.intent_audit/commit_plan.yaml`
+- `commit_plan.yaml`
   - **Required** for committing
   - **MVP restriction**: must be valid **JSON** (YAML JSON-subset is accepted)
   - Each changed file must appear in **exactly one** `commits[].files` list
@@ -80,6 +80,10 @@ Claude Code hooks are configured via:
 
 After editing hook settings, you typically need to review/apply changes in the
 Claude Code `/hooks` UI (Claude snapshots hooks at session start).
+
+**Important**: Add `.intent_audit/` to your `.gitignore`. The artifact directory
+must not appear as untracked files, otherwise the diff hash changes on every
+stop invocation, creating an infinite blocking loop.
 
 ## Known MVP limitations
 

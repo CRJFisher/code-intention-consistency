@@ -7,16 +7,80 @@
 
 Build an intention audit trail / consistency engine enforced by a Claude Code **Stop hook**.
 
-- The stop hook blocks stopping if there are uncommitted changes and missing/invalid metadata.
-- When blocked, the hook instructs the agent to run a **specific sub-agent** (e.g., `intention-mapper`, `commit-planner`) with appropriate inputs.
-- Each sub-agent is pre-configured to call a dedicated **MCP tool** that:
-  - Analyzes trajectory data (conversation + diff)
-  - Produces structured output files (`intentions.yaml`, `commit_plan.yaml`, etc.)
-- On subsequent stop attempts, the hook checks for file presence to determine completion:
-  - `intentions.yaml` present & valid → intention mapping complete
-  - `commit_plan.yaml` present & valid → commit planning complete
-  - Evidence results present → evidence checking complete
-- Once all checks pass, the stop hook executes the commit plan to produce intention-scoped commits with standardized trailers.
+### Core Architecture: Hook → Sub-Agent → MCP Tool
+
+The system has three distinct components with clear responsibilities:
+
+1. **Hook (deterministic checker)**: Checks for session-keyed artifact files. If missing, blocks and logs which sub-agent to run.
+2. **Sub-Agent (LLM analyzer)**: Pre-configured Claude agent that analyzes the trajectory/diff and calls MCP tools with analyzed data.
+3. **MCP Tool (persistence endpoint)**: Validates and persists the structured data the sub-agent passes to it.
+
+**CRITICAL**: The MCP tool does NOT analyze anything. The sub-agent (an LLM) does all analysis. The MCP tool just receives structured data and writes it to files.
+
+### Session-Keyed Artifacts
+
+All artifact files are keyed by the Claude Code session ID to ensure:
+- Each session's artifacts are tracked separately
+- Stale artifacts from previous sessions don't cause false positives
+- The hook knows exactly which artifacts belong to the current session
+
+Artifact location: `.intent_audit/<session_id>/` contains:
+- `intentions.yaml` (or symlink to project-root intentions.yaml)
+- `commit_plan.yaml`
+- `evidence_results.json`
+- `structure_validation.json`
+- `session_record.json`
+
+### Blocking Loop
+
+The hook keeps blocking until all required artifacts are present and valid:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    TOP-LEVEL AGENT SESSION                      │
+│                                                                 │
+│  1. User makes changes with Claude Code                         │
+│  2. User attempts to stop (or post-tool-use hook triggers)      │
+│                                                                 │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                    HOOK EXECUTES                         │   │
+│  │                                                          │   │
+│  │  • Reads session_id from hook input                      │   │
+│  │  • Checks for .intent_audit/<session_id>/artifacts       │   │
+│  │  • If artifact missing → BLOCK with message:             │   │
+│  │    "Run sub-agent X with inputs: session_id, cwd, ..."   │   │
+│  │  • If all artifacts valid → ALLOW (execute commit plan)  │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                           │                                     │
+│                           ▼ (if blocked)                        │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                  SUB-AGENT SPAWNED                       │   │
+│  │                                                          │   │
+│  │  • Sub-agent is an LLM with pre-configured tools         │   │
+│  │  • Sub-agent ANALYZES: reads transcript, diffs, etc.     │   │
+│  │  • Sub-agent CALLS MCP tool with structured data:        │   │
+│  │    mcp__intention_audit__save_intentions({               │   │
+│  │      session_id: "...",                                  │   │
+│  │      intentions: { id: "...", title: "...", ... }        │   │
+│  │    })                                                    │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                           │                                     │
+│                           ▼                                     │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │                   MCP TOOL EXECUTES                      │   │
+│  │                                                          │   │
+│  │  • Receives structured data from sub-agent               │   │
+│  │  • Validates schema                                      │   │
+│  │  • Writes to .intent_audit/<session_id>/<artifact>.yaml  │   │
+│  │  • Returns success/error                                 │   │
+│  └─────────────────────────────────────────────────────────┘   │
+│                           │                                     │
+│                           ▼                                     │
+│  3. Agent attempts to stop again → hook re-checks artifacts     │
+│  4. Repeat until all artifacts present and valid                │
+│  5. Hook executes commit plan, allows stop                      │
+└─────────────────────────────────────────────────────────────────┘
+```
 
 ## Technical Context
 
@@ -177,27 +241,78 @@ tests/
 ```text
 # In TARGET repos (not this development repo):
 .intent_audit/
-├── commit_plan.yaml                   # tool output; checked by stop hook
-├── evidence_results.json              # tool output; checked by stop hook
-├── structure_validation.json          # tool output; checked by stop hook
-└── sessions/
-    └── <session_id>.json              # committed audit record
+├── <session_id>/                      # Session-keyed directory (prevents stale artifact confusion)
+│   ├── intentions.yaml                # MCP tool output: intention tree for this session
+│   ├── commit_plan.yaml               # MCP tool output: commit plan for this session
+│   ├── evidence_results.json          # MCP tool output: test results for this session
+│   ├── structure_validation.json      # MCP tool output: boundary check results
+│   └── session_record.json            # MCP tool output: audit record (committed at end)
+└── sessions/                          # Historical session records (committed to repo)
+    └── <session_id>.json              # Moved here after successful stop
 ```
+
+**Session ID**: Obtained from Claude Code hook input JSON. Each session gets its own artifact directory.
+
+**Why session-keyed?**
+- Prevents stale artifacts from previous sessions causing false positives
+- Allows parallel sessions (rare but possible)
+- Clear cleanup: delete entire session directory after successful commit
 
 **Structure Decision**: single-repo layout with a deterministic nested fixture repo for E2E validation. Functionality intentions define module boundaries via `code_home`.
 
 ## Stop Hook → Sub-Agent → MCP Tool Flow
 
-### Architecture Overview
+### Component Responsibilities (CRITICAL)
 
-The MVP uses a **modular sub-agent architecture** where each consistency check is handled by a dedicated sub-agent that calls a specialized MCP tool:
+| Component | Responsibility | Does NOT |
+|-----------|----------------|----------|
+| **Hook** | Check for session-keyed artifacts; block with sub-agent instructions; **execute commit plan when all artifacts present (stop hook only)** | Analyze anything; call MCP tools |
+| **Sub-Agent** | Analyze trajectory/diff; determine intentions; call MCP tools with structured data | Write files directly; validate schemas |
+| **MCP Tool** | Validate schema; write artifact files; return success/error | Analyze anything; make decisions |
 
-1. **Stop hook detects missing checks**: Examines working directory for required files (`.intent_audit/commit_plan.yaml`, `evidence_results.json`, etc.)
-2. **Stop hook blocks with instructions**: Returns exit code 2 with message: "Run the `intention-mapper` agent with inputs: session_id=X, cwd=Y, transcript_path=Z"
-3. **Agent launches sub-agent**: Main agent spawns the specified sub-agent with provided inputs
-4. **Sub-agent calls MCP tool**: Sub-agent is pre-configured to call the appropriate MCP tool (e.g., `mcp__intention_audit__map_intentions`)
-5. **MCP tool produces output file**: Tool analyzes trajectory data and writes structured file (e.g., `intentions.yaml`)
-6. **File presence indicates completion**: On next stop attempt, hook checks for file and proceeds to next check
+### Detailed Flow
+
+**Step 1: Hook Triggered**
+- Hook receives input JSON with `session_id`, `cwd`, etc.
+- Hook checks for `.intent_audit/<session_id>/` artifacts
+- Artifacts are **keyed by session_id** to prevent stale data confusion
+
+**Step 2: Hook Blocks (if artifacts missing)**
+- Returns exit code 2 (block)
+- Stderr message: `"Run the 'intention-mapper' sub-agent with inputs: session_id=<id>, cwd=<path>"`
+- The message tells the top-level agent WHICH sub-agent to spawn and WHAT inputs to provide
+
+**Step 3: Top-Level Agent Spawns Sub-Agent**
+- The main Claude Code agent sees the block message
+- Spawns the specified sub-agent (e.g., `intention-mapper`)
+- Sub-agent is an LLM with pre-configured tool access
+
+**Step 4: Sub-Agent Analyzes and Calls MCP Tool**
+- Sub-agent reads the conversation history/trajectory
+- Sub-agent identifies user intentions (THIS IS WHERE LLM ANALYSIS HAPPENS)
+- Sub-agent calls MCP tool with analyzed, structured data:
+  ```
+  mcp__intention_audit__save_intentions({
+    session_id: "abc123",
+    cwd: "/path/to/repo",
+    intentions: {
+      id: "INT-2026-01-30-0001",
+      title: "Add authentication",
+      kind: "functionality",
+      children: [...]
+    }
+  })
+  ```
+
+**Step 5: MCP Tool Persists Data**
+- MCP tool receives structured data from sub-agent
+- Validates against JSON schema
+- Writes to `.intent_audit/<session_id>/intentions.yaml`
+- Returns `{success: true, path: "..."}` or `{success: false, error: "..."}`
+
+**Step 6: Hook Re-checks**
+- On next stop attempt, hook sees the artifact now exists
+- Proceeds to next check (or allows stop if all checks pass)
 
 ### Sub-Agent Definitions (PRODUCT)
 
@@ -206,30 +321,33 @@ Sub-agents are **PRODUCT code** defined in `src/intention_audit/agents/` (not `.
 During deployment to target repos, these YAML files are copied to the target repo's `.claude/agents/` directory.
 
 Each sub-agent definition specifies:
-- **Tool access**: Granted access to specific MCP tool(s)
-- **Input parameters**: Expected inputs (session_id, cwd, transcript_path, diff_base, etc.)
-- **Output specification**: File path(s) to create
-- **Prompt template**: Instructions for calling the MCP tool with structured parameters
+- **Tool access**: Which MCP tool(s) the sub-agent can call
+- **Input parameters**: Expected inputs (session_id, cwd, etc.)
+- **Analysis instructions**: What to analyze and how
+- **Output specification**: What data to pass to the MCP tool
 
-Sub-agents in `src/intention_audit/agents/`:
-- `intention-mapper.yaml`: Calls `map_intentions` tool → produces `intentions.yaml`
-- `commit-planner.yaml`: Calls `plan_commits` tool → produces `.intent_audit/commit_plan.yaml`
-- `evidence-checker.yaml`: Calls `check_evidence` tool → produces `.intent_audit/evidence_results.json`
-- `structure-validator.yaml`: Calls `validate_structure` tool → produces `.intent_audit/structure_validation.json`
-- `session-recorder.yaml`: Calls `record_session` tool → produces `.intent_audit/sessions/<session_id>.json`
+**Sub-agents and their MCP tools:**
+
+| Sub-Agent | MCP Tool | Sub-Agent Analyzes | Tool Persists |
+|-----------|----------|-------------------|---------------|
+| `intention-mapper` | `save_intentions` | Transcript → intention tree | `intentions.yaml` |
+| `commit-planner` | `save_commit_plan` | Diff + intentions → commit mapping | `commit_plan.yaml` |
+| `evidence-checker` | `save_evidence_results` | Test execution → results | `evidence_results.json` |
+| `structure-validator` | `save_structure_validation` | Paths vs code_home → violations | `structure_validation.json` |
+| `session-recorder` | `save_session_record` | Session summary → audit record | `session_record.json` |
 
 ### Stop Hook Check Sequence
 
 On each stop attempt, the hook performs checks in order:
 
 1. **Uncommitted changes check**: If `git diff HEAD` is empty → allow stop
-2. **Intention mapping check**: If `intentions.yaml` missing or invalid → block, instruct `intention-mapper` agent
-3. **Commit planning check**: If `.intent_audit/commit_plan.yaml` missing or invalid → block, instruct `commit-planner` agent
-4. **Coverage check**: If commit plan doesn't cover 100% of diff → block, instruct `commit-planner` agent with coverage error
-5. **Evidence check** (if enabled): If `.intent_audit/evidence_results.json` missing → block, instruct `evidence-checker` agent
-6. **Evidence failure check**: If evidence_results.json shows failures → block with intention context report
-7. **Structure alignment check**: If `.intent_audit/structure_validation.json` missing or shows violations → block, instruct `structure-validator` agent
-8. **All checks pass**: Execute commit plan (apply patches, create commits with trailers), clean up `.intent_audit/`, allow stop
+2. **Intention mapping check**: If `.intent_audit/<session_id>/intentions.yaml` missing or invalid → block, instruct `intention-mapper` sub-agent
+3. **Commit planning check**: If `.intent_audit/<session_id>/commit_plan.yaml` missing or invalid → block, instruct `commit-planner` sub-agent
+4. **Coverage check**: If commit plan doesn't cover 100% of diff → block, instruct `commit-planner` sub-agent with coverage error
+5. **Evidence check** (if enabled): If `.intent_audit/<session_id>/evidence_results.json` missing → block, instruct `evidence-checker` sub-agent
+6. **Evidence failure check**: If evidence_results.json shows failures → block with intention context report (agent must fix or supersede)
+7. **Structure alignment check**: If `.intent_audit/<session_id>/structure_validation.json` missing or shows violations → block, instruct `structure-validator` sub-agent
+8. **All checks pass**: Execute commit plan (apply patches, create commits with trailers), clean up `.intent_audit/<session_id>/`, allow stop
 
 ## MVP validation strategy (testable target)
 
@@ -326,17 +444,33 @@ E2E tests treat the **PRODUCT stop hook as a CLI** running in isolated sample re
 - Deleted after each test run
 - Excluded via `.gitignore` if accidentally created
 
-### MCP tools in E2E tests (real tools, not mocks)
+### MCP tools in E2E tests
 
-E2E tests use the **real MCP tools** from `mcp_servers/intention_audit/tools/` for complete integration testing:
+E2E tests use the **real MCP tools** from `mcp_servers/intention_audit/tools/` for complete integration testing.
 
-- `map_intentions.py`: reads trajectory, writes `intentions.yaml`
-- `plan_commits.py`: reads diff + intentions, writes `.intent_audit/commit_plan.yaml`
-- `check_evidence.py`: runs pytest, writes `.intent_audit/evidence_results.json`
-- `validate_structure.py`: checks boundaries, writes `.intent_audit/structure_validation.json`
-- `record_session.py`: writes `.intent_audit/sessions/<session_id>.json`
+**IMPORTANT**: In E2E tests, we simulate the sub-agent's job by calling MCP tools directly with pre-determined test data. This is valid because:
+- The MCP tool's job is just to validate schema and persist data
+- The sub-agent (LLM) analysis is the non-deterministic part we can't test end-to-end deterministically
+- We test that the hook→tool→artifact→hook flow works correctly
 
-E2E harness simulates "agent ran sub-agent → sub-agent called MCP tool" by calling real MCP tools directly between stop-hook invocations. This ensures E2E tests exercise the complete, real system.
+**MCP Tools (persistence endpoints):**
+
+| Tool | Input | Output |
+|------|-------|--------|
+| `save_intentions` | `{session_id, cwd, intentions: {...}}` | `intentions.yaml` |
+| `save_commit_plan` | `{session_id, cwd, plan: {...}}` | `commit_plan.yaml` |
+| `save_evidence_results` | `{session_id, cwd, results: {...}}` | `evidence_results.json` |
+| `save_structure_validation` | `{session_id, cwd, validation: {...}}` | `structure_validation.json` |
+| `save_session_record` | `{session_id, cwd, record: {...}}` | `session_record.json` |
+
+**E2E Test Flow:**
+1. Set up sample repo with changes
+2. Run stop hook → blocks, says "run intention-mapper with session_id=X"
+3. Test harness calls `save_intentions` MCP tool with test intention data
+4. Run stop hook again → blocks, says "run commit-planner"
+5. Test harness calls `save_commit_plan` MCP tool with test plan data
+6. Run stop hook again → passes, creates commits
+7. Verify commits have correct trailers
 
 ### Primary E2E demo scenario: failing evidence surfaces intention context
 

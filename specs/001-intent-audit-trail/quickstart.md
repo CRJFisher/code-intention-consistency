@@ -5,6 +5,7 @@ This quickstart describes the **demo flow** for the MVP: stop-time consistency c
 ## Prerequisites
 - Claude Code hooks enabled for the repo
 - An MCP server tool implementing `mcp__intention_audit__plan_intention_commits`
+- **`.intent_audit/` added to `.gitignore`** — artifacts must not appear as untracked files, or the diff hash will change on every invocation, causing an infinite blocking loop
 
 ## Demo scenario: failing evidence surfaces intention context
 

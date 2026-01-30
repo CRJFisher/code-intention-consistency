@@ -56,14 +56,23 @@ As a user, I want functionality intentions (domain semantics) to define module b
 
 ## Requirements *(mandatory)*
 
+### Architectural Requirements
+
+The system uses a three-component architecture with clear separation of concerns:
+
+- **AR-001**: **Hook (deterministic checker)**: The stop hook MUST only check for session-keyed artifact files and block with sub-agent instructions. It MUST NOT perform any LLM analysis or call MCP tools directly.
+- **AR-002**: **Sub-Agent (LLM analyzer)**: Sub-agents MUST be LLM agents that analyze the trajectory/diff and call MCP tools with structured data. The analysis happens in the sub-agent, NOT in the MCP tool.
+- **AR-003**: **MCP Tool (persistence endpoint)**: MCP tools MUST only validate schemas and persist data. They MUST NOT perform any analysis or decision-making.
+- **AR-004**: **Session-keyed artifacts**: All artifact files MUST be keyed by session_id (`.intent_audit/<session_id>/`) to prevent stale artifacts from previous sessions causing false positives.
+
 ### Functional Requirements
 - **FR-001**: System MUST maintain a canonical intention tree in `intentions.yaml` with stable IDs.
 - **FR-002**: System MUST block stopping when there are uncommitted changes and no complete intention→edit mapping exists.
-- **FR-003**: System MUST generate/consume a patch-level commit plan (`.intent_audit/commit_plan.yaml`) that covers 100% of diff hunks exactly once.
+- **FR-003**: System MUST generate/consume a patch-level commit plan (`.intent_audit/<session_id>/commit_plan.yaml`) that covers 100% of diff hunks exactly once.
 - **FR-004**: System MUST encode intention metadata into commit messages via trailers (at least `Intent-Id`).
 - **FR-005**: System MUST link evidence tests to intentions (either on intention nodes and/or in the commit plan/trailers).
 - **FR-006**: System MUST link supporting docs to intentions that affect externally-relevant behavior (or record a rationale for no docs).
-- **FR-007**: System MUST distinguish functionality intentions vs implementation intentions; structure alignment checks MUST be based on functionality intentions’ module boundaries.
+- **FR-007**: System MUST distinguish functionality intentions vs implementation intentions; structure alignment checks MUST be based on functionality intentions' module boundaries.
 - **FR-008**: When evidence execution is enabled, system MUST block stopping if impacted evidence tests fail and MUST surface intention-linked context to support repair vs supersede decisions.
 
 ### Key Entities *(include if feature involves data)*
