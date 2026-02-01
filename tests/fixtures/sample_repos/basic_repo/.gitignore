@@ -1,0 +1,12 @@
+# Intent audit artifacts (required to prevent infinite hook loop)
+.intent_audit/
+
+# IDE
+.vscode/
+.idea/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/

@@ -177,3 +177,75 @@ def _validate_session_record_basic(data: dict) -> list[str]:
         errors.append("mapping_summary: must be an object")
 
     return errors
+
+
+def validate_structure_validation(data: dict) -> list[str]:
+    """
+    Validate structure validation data against the schema.
+
+    Args:
+        data: Dictionary to validate.
+
+    Returns:
+        List of validation error messages. Empty list means valid.
+    """
+    try:
+        schema = _load_schema("structure_validation")
+    except FileNotFoundError:
+        return _validate_structure_validation_basic(data)
+
+    return _validate_against_schema(data, schema)
+
+
+def _validate_structure_validation_basic(data: dict) -> list[str]:
+    """Basic validation without JSON schema."""
+    errors = []
+
+    # passed must be a boolean
+    if "passed" not in data:
+        errors.append("(root): missing required field 'passed'")
+    elif not isinstance(data["passed"], bool):
+        errors.append("passed: must be a boolean")
+
+    # violations must be an array
+    violations = data.get("violations")
+    if violations is None:
+        errors.append("(root): missing required field 'violations'")
+    elif not isinstance(violations, list):
+        errors.append("violations: must be an array")
+    else:
+        for i, violation in enumerate(violations):
+            if not isinstance(violation, dict):
+                errors.append(f"violations.{i}: must be an object")
+                continue
+            if "type" not in violation:
+                errors.append(f"violations.{i}: missing required field 'type'")
+            elif not isinstance(violation["type"], str):
+                errors.append(f"violations.{i}.type: must be a string")
+            if "intent_id" not in violation:
+                errors.append(f"violations.{i}: missing required field 'intent_id'")
+            elif not isinstance(violation["intent_id"], str):
+                errors.append(f"violations.{i}.intent_id: must be a string")
+            # Optional fields type checks
+            if "functionality_intent_id" in violation and violation["functionality_intent_id"] is not None:
+                if not isinstance(violation["functionality_intent_id"], str):
+                    errors.append(f"violations.{i}.functionality_intent_id: must be a string or null")
+            if "violating_paths" in violation and violation["violating_paths"] is not None:
+                if not isinstance(violation["violating_paths"], list):
+                    errors.append(f"violations.{i}.violating_paths: must be an array or null")
+            if "expected_prefixes" in violation and violation["expected_prefixes"] is not None:
+                if not isinstance(violation["expected_prefixes"], list):
+                    errors.append(f"violations.{i}.expected_prefixes: must be an array or null")
+            if "details" in violation and violation["details"] is not None:
+                if not isinstance(violation["details"], dict):
+                    errors.append(f"violations.{i}.details: must be an object or null")
+            if "suggested_fix" in violation and violation["suggested_fix"] is not None:
+                if not isinstance(violation["suggested_fix"], str):
+                    errors.append(f"violations.{i}.suggested_fix: must be a string or null")
+
+    # override_rationale is optional but must be string or null
+    if "override_rationale" in data and data["override_rationale"] is not None:
+        if not isinstance(data["override_rationale"], str):
+            errors.append("override_rationale: must be a string or null")
+
+    return errors

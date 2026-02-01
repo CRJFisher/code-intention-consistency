@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "intention-audit": {
+      "command": "python",
+      "args": ["mcp_servers/intention_audit/server.py"]
+    }
+  }
+}

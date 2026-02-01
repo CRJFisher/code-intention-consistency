@@ -1,0 +1,34 @@
+root:
+  id: INT-DEMO-001
+  title: Calculator Feature
+  kind: goal
+  status: implemented
+  children:
+    - id: INT-DEMO-002
+      title: Basic Arithmetic Operations
+      kind: functionality
+      status: implemented
+      code_home:
+        - src/calculator/
+      evidence_tests:
+        - tests/calculator/test_operations.py::test_add_positive
+        - tests/calculator/test_operations.py::test_add_negative
+        - tests/calculator/test_operations.py::test_add_zero
+        - tests/calculator/test_operations.py::test_subtract_positive
+        - tests/calculator/test_operations.py::test_subtract_negative
+      supporting_docs:
+        - docs/calculator.md#add
+        - docs/calculator.md#subtract
+      children:
+        - id: INT-DEMO-003
+          title: Implement add function
+          kind: implementation
+          status: implemented
+        - id: INT-DEMO-004
+          title: Implement subtract function
+          kind: implementation
+          status: implemented
+        - id: INT-DEMO-005
+          title: Add arithmetic tests
+          kind: tests
+          status: implemented

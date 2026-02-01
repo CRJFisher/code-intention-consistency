@@ -1,0 +1,26 @@
+root:
+  id: INT-2026-01-30-0001
+  title: "Payment Processing System"
+  kind: goal
+  status: implemented
+  children:
+    - id: INT-2026-01-30-0002
+      title: "Core Payment Functionality"
+      kind: functionality
+      status: implemented
+      code_home:
+        - src/payments/
+      children:
+        - id: INT-2026-01-30-0003
+          title: "Process payments"
+          kind: implementation
+          status: implemented
+          evidence_tests:
+            - tests/payments/test_processor.py::test_process_payment
+        - id: INT-2026-01-30-0004
+          title: "Validate payment amounts"
+          kind: implementation
+          status: implemented
+          evidence_tests:
+            - tests/payments/test_processor.py::test_validate_amount_positive
+            - tests/payments/test_processor.py::test_validate_amount_negative

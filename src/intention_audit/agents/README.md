@@ -26,23 +26,26 @@ The MCP tool only validates and writes - it does NOT analyze.
 
 | Agent | Purpose | MCP Tool | Output Artifact |
 |-------|---------|----------|-----------------|
-| `intention-mapper` | Analyze conversation to identify user intentions | `save_intentions` | `.intent_audit/<session_id>/intentions.yaml` |
-| `commit-planner` | Map diff changes to intentions and create commit plan | `save_commit_plan` | `.intent_audit/<session_id>/commit_plan.yaml` |
-| `evidence-checker` | Determine which evidence tests to run | `run_evidence_tests` | `.intent_audit/<session_id>/evidence_results.json` |
-| `structure-validator` | Check code_home boundary violations | `save_structure_validation` | `.intent_audit/<session_id>/structure_validation.json` |
-| `session-recorder` | Summarize session for audit trail | `save_session_record` | `.intent_audit/<session_id>/session_record.json` |
+| `intention-mapper` | Analyze conversation to identify user intentions | `save_intentions` | `.intent_audit/<session_id>/<diff_hash>/intentions.yaml` |
+| `commit-planner` | Map diff changes to intentions and create commit plan | `save_commit_plan` | `.intent_audit/<session_id>/<diff_hash>/commit_plan.yaml` |
+| `evidence-checker` | Determine which evidence tests to run | `run_evidence_tests` | `.intent_audit/<session_id>/<diff_hash>/evidence_results.json` |
+| `structure-validator` | Check code_home boundary violations | `save_structure_validation` | `.intent_audit/<session_id>/<diff_hash>/structure_validation.json` |
+| `session-recorder` | Summarize session for audit trail | `save_session_record` | `.intent_audit/sessions/<session_id>.json` |
 
 ## Session-Keyed Artifacts
 
 All artifacts are keyed by `session_id` to prevent stale artifacts from previous sessions causing false positives:
 
 ```
-.intent_audit/<session_id>/
-├── intentions.yaml
-├── commit_plan.yaml
-├── evidence_results.json      (Phase 4)
-├── structure_validation.json  (Phase 5)
-└── session_record.json        (Phase 6)
+.intent_audit/
+├── <session_id>/
+│   └── <diff_hash>/
+│       ├── intentions.yaml
+│       ├── commit_plan.yaml
+│       ├── evidence_results.json      (Phase 4)
+│       └── structure_validation.json  (Phase 5)
+└── sessions/
+    └── <session_id>.json              (Phase 6 - session record)
 ```
 
 ## Stop Hook Integration

@@ -18,3 +18,6 @@ __pycache__/
 
 # Intent audit runtime state (only exists in target repos, not this dev repo)
 .intent_audit/
+
+# E2E test transcript outputs
+tests/e2e/outputs/
