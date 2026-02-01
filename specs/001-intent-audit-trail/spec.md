@@ -61,7 +61,9 @@ As a user, I want functionality intentions (domain semantics) to define module b
 The system uses a three-component architecture with clear separation of concerns:
 
 - **AR-001**: **Hook (deterministic checker)**: The stop hook MUST only check for session-keyed artifact files and block with sub-agent instructions. It MUST NOT perform any LLM analysis or call MCP tools directly.
-- **AR-002**: **Sub-Agent (LLM analyzer)**: Sub-agents MUST be LLM agents that analyze the trajectory/diff and call MCP tools with structured data. The analysis happens in the sub-agent, NOT in the MCP tool.
+- **AR-002**: **Sub-Agent Context Protocol**: When spawning intention audit sub-agents, the main agent MUST provide structured context:
+  - **For intention-mapper**: User intentions (explicit requests/goals from conversation), implementation context (decisions, discoveries made during work), and session metadata (session_id, diff_hash, cwd).
+  - The sub-agent MUST read the current git diff (`git diff HEAD`), link each changed file/hunk to the provided intentions, and structure as an intention tree with file mappings.
 - **AR-003**: **MCP Tool (persistence endpoint)**: MCP tools MUST only validate schemas and persist data. They MUST NOT perform any analysis or decision-making.
 - **AR-004**: **Session-keyed artifacts**: All artifact files MUST be keyed by session_id (`.intent_audit/<session_id>/`) to prevent stale artifacts from previous sessions causing false positives.
 

@@ -2,40 +2,107 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "intentions.schema.json",
   "title": "Intention tree (JSON-compatible subset)",
+  "description": "Schema for the intention tree produced by the intention-mapper sub-agent.",
   "type": "object",
   "required": ["root"],
   "properties": {
     "root": { "$ref": "#/$defs/Intention" }
   },
+  "examples": [
+    {
+      "root": {
+        "id": "INT-2026-01-30-0001",
+        "title": "Add greeting feature",
+        "kind": "goal",
+        "status": "implemented",
+        "children": [
+          {
+            "id": "INT-2026-01-30-0002",
+            "title": "Greeting functionality",
+            "kind": "functionality",
+            "status": "implemented",
+            "code_home": ["src/greet/"],
+            "children": [
+              {
+                "id": "INT-2026-01-30-0003",
+                "title": "Implement greet() function",
+                "kind": "implementation",
+                "status": "implemented",
+                "children": []
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ],
   "$defs": {
     "Intention": {
       "type": "object",
+      "description": "A node in the intention tree. Leaf nodes (implementation, tests, docs) are referenced by commits.",
       "required": ["id", "title", "kind", "status", "children"],
       "properties": {
-        "id": { "type": "string" },
-        "title": { "type": "string" },
+        "id": {
+          "type": "string",
+          "description": "Stable ID in format INT-YYYY-MM-DD-NNNN",
+          "pattern": "^INT-[0-9]{4}-[0-9]{2}-[0-9]{2}-[0-9]{4}$"
+        },
+        "title": {
+          "type": "string",
+          "description": "Human-readable title describing the intention"
+        },
         "kind": {
           "type": "string",
-          "enum": ["goal", "functionality", "implementation", "tests", "docs", "observability"]
+          "enum": ["goal", "functionality", "implementation", "tests", "docs", "observability"],
+          "description": "goal=high-level objective, functionality=domain feature (has code_home), implementation/tests/docs/observability=leaf nodes (referenced by commits)"
         },
         "status": {
           "type": "string",
-          "enum": ["planned", "in_progress", "implemented", "superseded", "deprecated"]
+          "enum": ["planned", "in_progress", "implemented", "superseded", "deprecated"],
+          "description": "Current status of the intention"
         },
-        "created_at": { "type": "string" },
-        "rationale": { "type": "string" },
-        "constraints": { "type": ["string", "array"] },
-        "superseded_by": { "type": "string" },
-        "evidence_tests": { "type": "array", "items": { "type": "string" } },
-        "supporting_docs": { "type": "array", "items": { "type": "string" } },
-        "code_home": { "type": "array", "items": { "type": "string" } },
-        "named_scopes": { "type": "array", "items": { "type": "string" } },
+        "created_at": {
+          "type": "string",
+          "description": "ISO timestamp when intention was created"
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Why this intention exists"
+        },
+        "constraints": {
+          "type": ["string", "array"],
+          "description": "Constraints or requirements for this intention"
+        },
+        "superseded_by": {
+          "type": "string",
+          "description": "ID of intention that supersedes this one"
+        },
+        "evidence_tests": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Test selectors that verify this intention (e.g., tests/x.py::test_y)"
+        },
+        "supporting_docs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Doc paths with anchors (e.g., docs/x.md#section)"
+        },
+        "code_home": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Repo-relative path prefixes for this functionality's code boundary. Required for kind=functionality."
+        },
+        "named_scopes": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Naming conventions for classes/modules/symbols (future)"
+        },
         "children": {
           "type": "array",
-          "items": { "$ref": "#/$defs/Intention" }
+          "items": { "$ref": "#/$defs/Intention" },
+          "description": "Child intentions forming the tree hierarchy"
         }
       }
     }
   }
 }
-

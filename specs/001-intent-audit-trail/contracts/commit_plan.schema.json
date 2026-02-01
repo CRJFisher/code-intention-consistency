@@ -2,36 +2,103 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "commit_plan.schema.json",
   "title": "Intention audit commit plan (v1)",
+  "description": "Commit plan for MVP (file-scoped). Each file appears in exactly one commit. Commit entries reference leaf-level intentions.",
   "type": "object",
   "required": ["version", "ready", "diff_base", "diff_hash", "commits"],
   "properties": {
     "version": { "const": 1 },
-    "ready": { "type": "boolean" },
-    "diff_base": { "type": "string" },
-    "diff_hash": { "type": "string" },
+    "ready": {
+      "type": "boolean",
+      "description": "True when the plan is complete and ready for execution"
+    },
+    "diff_base": {
+      "type": "string",
+      "description": "Base ref for the diff (usually HEAD)"
+    },
+    "diff_hash": {
+      "type": "string",
+      "description": "Normalized hash of the diff the plan was built for"
+    },
     "commits": {
       "type": "array",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/CommitEntry" }
+      "items": { "$ref": "#/$defs/CommitEntry" },
+      "description": "List of commits to create. Each file must appear in exactly one commit."
     }
   },
+  "examples": [
+    {
+      "version": 1,
+      "ready": true,
+      "diff_base": "HEAD",
+      "diff_hash": "1342cb2d0cffedae",
+      "commits": [
+        {
+          "intent_id": "INT-2026-01-30-0003",
+          "functionality_intent_id": "INT-2026-01-30-0002",
+          "intent_path": "Add auth/Login/Implement login",
+          "subject": "feat(auth): add login endpoint",
+          "body": "Implement POST /auth/login with JWT",
+          "files": ["src/auth/login.py", "src/auth/jwt.py"]
+        }
+      ]
+    }
+  ],
   "$defs": {
     "CommitEntry": {
       "type": "object",
-      "required": ["intent_id", "functionality_intent_id", "subject", "patch"],
+      "description": "A single intention-scoped commit. Must reference a leaf-level intention (implementation, tests, docs, observability).",
+      "required": ["intent_id", "functionality_intent_id", "subject", "files"],
       "properties": {
-        "intent_id": { "type": "string" },
-        "intent_path": { "type": "string" },
-        "functionality_intent_id": { "type": "string" },
-        "functionality_intent_path": { "type": "string" },
-        "subject": { "type": "string" },
-        "body": { "type": "string" },
-        "intent_confidence": { "type": ["number", "string"] },
-        "evidence_tests": { "type": "array", "items": { "type": "string" } },
-        "supporting_docs": { "type": "array", "items": { "type": "string" } },
-        "patch": { "type": "string" }
+        "intent_id": {
+          "type": "string",
+          "description": "ID of the LEAF intention this commit realizes. Must be kind=implementation, tests, docs, or observability."
+        },
+        "intent_path": {
+          "type": "string",
+          "description": "Human-readable path through the intention tree (e.g., 'Goal/Feature/Implementation')"
+        },
+        "functionality_intent_id": {
+          "type": "string",
+          "description": "ID of the closest functionality ancestor. Must be kind=functionality."
+        },
+        "functionality_intent_path": {
+          "type": "string",
+          "description": "Human-readable path to the functionality intention"
+        },
+        "subject": {
+          "type": "string",
+          "description": "Commit subject line. Use conventional commit format (feat, fix, test, docs, chore, refactor)."
+        },
+        "body": {
+          "type": "string",
+          "description": "Optional commit body with additional details"
+        },
+        "intent_confidence": {
+          "type": ["number", "string"],
+          "description": "Confidence score for the intention mapping (optional)"
+        },
+        "evidence_tests": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Test selectors that verify this commit's changes"
+        },
+        "supporting_docs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Doc paths related to this commit"
+        },
+        "files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "minItems": 1,
+          "description": "MVP uses file list (not patch). Each file appears in exactly one commit across the entire plan."
+        },
+        "patch": {
+          "type": "string",
+          "description": "Unified diff patch (future: for patch-scoped commits). MVP uses files list instead."
+        }
       }
     }
   }
 }
-

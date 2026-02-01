@@ -79,3 +79,59 @@ Relationship of intention → docs (may be embedded in `intentions.yaml`, in pla
 - If evidence execution is enabled, impacted `evidence_tests` must pass before stop/commit.
 - Patches must remain within `code_home` for their functionality intention unless a structure fix/override is recorded.
 
+## Output Serialization
+
+### intentions.yaml Structure
+
+```yaml
+root:
+  id: INT-2026-01-30-0001
+  title: "Add user authentication"
+  kind: goal
+  status: implemented
+  children:
+    - id: INT-2026-01-30-0002
+      title: "Login functionality"
+      kind: functionality
+      status: implemented
+      code_home:
+        - src/auth/
+      children:
+        - id: INT-2026-01-30-0003
+          title: "Create login endpoint"
+          kind: implementation
+          status: implemented
+          # Commits should reference THIS level (leaf implementation)
+```
+
+### commit_plan.yaml Structure (MVP: file-scoped)
+
+```yaml
+version: 1
+ready: true
+diff_base: HEAD
+diff_hash: "abc123def456..."
+commits:
+  - intent_id: INT-2026-01-30-0003  # Reference LEAF intention
+    functionality_intent_id: INT-2026-01-30-0002
+    intent_path: "Add user authentication/Login functionality/Create login endpoint"
+    subject: "feat(auth): add login endpoint"
+    body: "Implement POST /auth/login with JWT token generation"
+    files:
+      - src/auth/login.py
+      - src/auth/jwt.py
+```
+
+### Leaf Intention Rule
+
+Commit entries MUST reference leaf-level intentions (`kind: implementation`, `tests`, `docs`).
+Goal and functionality intentions are for hierarchy only - they provide context but should not be directly referenced in commit `intent_id` fields.
+
+**Hierarchy levels:**
+- `goal` - High-level objective (root of tree)
+- `functionality` - Domain feature (has `code_home`, provides structure)
+- `implementation` - Technical work (**reference this in commits**)
+- `tests` - Test additions (**reference this in commits**)
+- `docs` - Documentation changes (**reference this in commits**)
+- `observability` - Logging/metrics (**reference this in commits**)
+

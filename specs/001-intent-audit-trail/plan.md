@@ -236,6 +236,25 @@ tests/
     └── test_structure_alignment.py    # structural alignment enforcement tests
 ```
 
+### E2E Output Capture Infrastructure
+
+All E2E test runs produce structured outputs for debugging and analysis:
+
+**Directory structure**: `tests/e2e/outputs/<test-name>/<iso-datetime>/`
+
+**Component files**:
+| File | Content | Purpose |
+|------|---------|---------|
+| `main-transcript.jsonl` | Raw JSONL from main session | Preserve original data |
+| `subagent-<id>.jsonl` | Raw sub-agent transcripts | Track agent execution |
+| `hook-output.txt` | Stop hook stdout/stderr | Debug blocking messages |
+| `mcp-calls.json` | All MCP invocations | Verify tool payloads |
+| `artifacts/*.yaml` | Copies of generated files | Inspect actual outputs |
+| `git-log.txt` | Final commit log | Verify trailers |
+| `combined.md` | Merged transcript | Human-readable analysis |
+
+**Key principle**: No truncation in any component file. Full payloads preserved.
+
 ### Runtime State (created by PRODUCT in target repos, NOT in this repo)
 
 ```text
@@ -335,6 +354,71 @@ Each sub-agent definition specifies:
 | `evidence-checker` | `save_evidence_results` | Test execution → results | `evidence_results.json` |
 | `structure-validator` | `save_structure_validation` | Paths vs code_home → violations | `structure_validation.json` |
 | `session-recorder` | `save_session_record` | Session summary → audit record | `session_record.json` |
+
+### Sub-Agent Context Protocol
+
+**Rationale**: Main agent has conversation context. Sub-agents need structured summaries, not raw transcripts.
+
+**Main Agent's Responsibility When Spawning intention-mapper:**
+
+The main agent MUST compile and pass:
+
+1. **User-Stated Intentions** (from conversation):
+   ```
+   - "Create a greeting function that returns Hello World"
+   - "Put it in src/feature_x/greet.py"
+   - "Keep it simple"
+   ```
+
+2. **Implementation Augmentations** (discovered during work):
+   ```
+   - Created directory src/feature_x/ (didn't exist)
+   - Used standard Python string return (no formatting)
+   - Added newline at end of file (PEP8)
+   ```
+
+3. **Changed Files Summary**:
+   ```
+   - src/feature_x/greet.py (new file) - contains greet() function
+   ```
+
+**intention-mapper Sub-Agent's Responsibility:**
+
+1. Read `git diff HEAD` to see exact changes
+2. For each changed file, identify which intention(s) it serves
+3. Structure as tree: goal → functionality → implementation
+4. Link files to leaf intentions via `code_home` or explicit mapping
+5. Call `mcp__intention-audit__save_intentions` with structured tree
+
+**commit-planner Sub-Agent's Responsibility:**
+
+1. Read the saved `intentions.yaml`
+2. Read `git diff HEAD` to see all changes
+3. Group files by the intention they serve
+4. Create commit entries with proper trailers
+5. Call `mcp__intention-audit__save_commit_plan`
+
+### Stop Hook Blocking Message Format
+
+When blocking for missing intentions:
+```
+Intention Audit Stop Hook blocked: missing intentions artifact.
+
+Session ID: <session_id>
+Diff hash: <diff_hash>
+Expected artifact: .intent_audit/<session_id>/<diff_hash>/intentions.yaml
+
+Changed files:
+- src/feature_x/greet.py (new file)
+- src/feature_x/__init__.py (new file)
+
+ACTION REQUIRED:
+1. Compile a summary of:
+   - User-stated intentions from this conversation
+   - Implementation decisions/discoveries you made
+2. Spawn intention-mapper sub-agent with this context
+3. The sub-agent will analyze diffs and link changes to intentions
+```
 
 ### Stop Hook Check Sequence
 

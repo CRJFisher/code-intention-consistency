@@ -11,13 +11,14 @@ This task list implements the Intention Audit Trail MVP across 6 phases:
 | Phase   | Description                             | Task Count           |
 | ------- | --------------------------------------- | -------------------- |
 | Phase 1 | Setup (Shared Infrastructure)           | 10 tasks (T001-T010) |
+| Phase 1.5 | E2E Output Infrastructure             | 3 tasks (T071-T073)  |
 | Phase 2 | Foundational (Blocking Prerequisites)   | 10 tasks (T011-T020) |
-| Phase 3 | User Story 1 - Auto-commit gate (P1)    | 16 tasks (T021-T036) |
+| Phase 3 | User Story 1 - Auto-commit gate (P1)    | 19 tasks (T021-T036, T074-T076) |
 | Phase 4 | User Story 2 - Evidence regression (P1) | 14 tasks (T037-T050) |
 | Phase 5 | User Story 3 - Structure alignment (P2) | 11 tasks (T051-T061) |
 | Phase 6 | Polish & Cross-Cutting                  | 9 tasks (T062-T070)  |
 
-**Total**: 70 tasks
+**Total**: 76 tasks
 
 ## Product vs Tooling Distinction
 
@@ -344,6 +345,84 @@ Run verification commands:
 Fix any configuration issues.
 
 **Acceptance**: All commands succeed with no errors.
+
+---
+
+## Phase 1.5: E2E Output Infrastructure
+
+These tasks establish comprehensive E2E output capture for debugging and analysis.
+
+### T071: Restructure E2E Output Directory
+
+**Status**: pending
+**Dependencies**: T008
+**Parallelizable**: yes (with T072)
+
+Create structured output directory for each E2E test run:
+
+**Output structure**: `tests/e2e/outputs/<test-name>/<iso-datetime>/`
+
+Create utility functions in `tests/e2e/output_capture.py`:
+- `create_output_dir(test_name: str) -> Path` - creates timestamped output directory
+- `save_component(output_dir: Path, name: str, content: str)` - saves component file
+- `copy_artifacts(output_dir: Path, artifact_dir: Path)` - copies generated artifacts
+
+**Acceptance criteria:**
+- [ ] Output dir structure: `outputs/<test-name>/<iso-datetime>/`
+- [ ] Individual component files created per test run
+- [ ] Old flat file structure deprecated
+
+---
+
+### T072: Remove Transcript Truncation
+
+**Status**: pending
+**Dependencies**: T071
+**Parallelizable**: yes (with T073)
+
+Update `tests/e2e/transcript_compiler.py` to remove all truncation:
+
+Current truncation points to remove:
+- Line 232: Agent summary → 400 chars (REMOVE)
+- Line 239: Tool result → 500 chars (REMOVE)
+- Line 250: User prompt → 400 chars (REMOVE)
+- Line 285: Task prompt → 250 chars (REMOVE)
+- Line 306: MCP tool input → 800 chars (REMOVE)
+- Line 318: Regular tool → 500 chars (REMOVE)
+- Line 354: API error → 500 chars (REMOVE)
+- Line 370: Hook output → 400 chars (REMOVE)
+
+**Acceptance criteria:**
+- [ ] All 8 truncation points in transcript_compiler.py removed
+- [ ] combined.md contains full outputs
+- [ ] Test runs with large payloads work correctly
+
+---
+
+### T073: Capture Component-Level Outputs
+
+**Status**: pending
+**Dependencies**: T071
+
+Extend E2E fixtures to capture individual component outputs:
+
+Component files to capture:
+| File | Source | Purpose |
+|------|--------|---------|
+| `main-transcript.jsonl` | Copy from session transcript | Raw main agent data |
+| `subagent-<id>.jsonl` | Copy from sub-agent transcripts | Track agent execution |
+| `hook-output.txt` | Capture stop hook stdout/stderr | Debug blocking messages |
+| `mcp-calls.json` | Extract from transcript | All MCP tool calls with full payloads |
+| `artifacts/*.yaml` | Copy from .intent_audit/ | Generated intentions/plans |
+| `git-log.txt` | Run git log after test | Verify trailers |
+| `git-status.txt` | Run git status after test | Final repo state |
+
+**Acceptance criteria:**
+- [ ] Raw JSONL transcripts copied to output dir
+- [ ] Hook stdout/stderr captured separately
+- [ ] MCP calls extracted to JSON file
+- [ ] Generated artifacts copied for inspection
+- [ ] Git state captured (log, status)
 
 ---
 
@@ -856,6 +935,87 @@ After successful stop-gate pass, verify commits have correct trailers:
 - Commits can be traced via `git log --format="%B"` + trailer extraction
 
 **Acceptance**: `uv run pytest -m e2e tests/e2e/test_commit_trailers.py` passes.
+
+---
+
+### T074: Define Main Agent Context Compilation
+
+**Status**: pending
+**Dependencies**: T015
+
+Update stop hook blocking message and documentation to specify what context the main agent must compile before spawning sub-agents:
+
+**Context the main agent MUST provide:**
+1. **User intentions**: All explicit user requests/goals from the conversation
+2. **Implementation context**: Decisions, discoveries, or augmentations made during work
+3. **Session metadata**: session_id, diff_hash, cwd
+
+**Acceptance criteria:**
+- [ ] Hook blocking message includes clear instructions for context compilation
+- [ ] Documentation specifies exact format for user-stated goals
+- [ ] Documentation specifies exact format for implementation discoveries
+- [ ] Clear format for passing to sub-agent
+
+---
+
+### T075: Update intention-mapper Sub-Agent
+
+**Status**: pending
+**Dependencies**: T074
+
+Update `src/intention_audit/agents/intention-mapper.md`:
+
+1. Add structured input format section showing what main agent provides
+2. Add diff analysis workflow (read git diff HEAD)
+3. Show how to link each change to provided intentions
+4. Add complete example with diff → intention tree mapping
+5. Document all valid enum values explicitly
+
+**Acceptance criteria:**
+- [ ] Sub-agent reads git diff HEAD
+- [ ] Sub-agent links each change to provided intentions
+- [ ] Sub-agent produces intention tree with file mappings
+- [ ] Valid enum values documented in agent prompt
+- [ ] Examples provided in agent prompt
+
+---
+
+### T076: Update Stop Hook Blocking Messages
+
+**Status**: pending
+**Dependencies**: T075
+
+Update `src/intention_audit/hooks/stop_hook.py` blocking messages to include:
+
+1. Full list of changed files (not just count)
+2. Clear action instructions for main agent
+3. Specification of what context to compile
+4. Template for sub-agent spawning
+
+**Blocking message format:**
+```
+Intention Audit Stop Hook blocked: missing intentions artifact.
+
+Session ID: <session_id>
+Diff hash: <diff_hash>
+Expected artifact: .intent_audit/<session_id>/<diff_hash>/intentions.yaml
+
+Changed files:
+- src/feature_x/greet.py (new file)
+- src/feature_x/__init__.py (new file)
+
+ACTION REQUIRED:
+1. Compile a summary of:
+   - User-stated intentions from this conversation
+   - Implementation decisions/discoveries you made
+2. Spawn intention-mapper sub-agent with this context
+3. The sub-agent will analyze diffs and link changes to intentions
+```
+
+**Acceptance criteria:**
+- [ ] Hook messages include full changed file list
+- [ ] Hook messages include clear action instructions
+- [ ] Hook messages specify what context to compile
 
 ---
 
