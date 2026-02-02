@@ -126,6 +126,7 @@ def _get_session_id(hook_input: dict[str, Any]) -> str:
     # Final fallback: generate a simple ID (not ideal, but prevents crash)
     import hashlib
     import time
+
     return hashlib.sha256(f"{time.time()}".encode()).hexdigest()[:12]
 
 
@@ -222,7 +223,7 @@ def _get_staged_paths(project_dir: Path) -> list[str]:
     return [p for p in out.split("\0") if p]
 
 
-def _block(message: str) -> "NoReturn":
+def _block(message: str) -> NoReturn:
     """Print block message and exit with code 2."""
     _eprint(message.rstrip() + "\n")
     sys.exit(2)
@@ -299,18 +300,21 @@ def _load_evidence_results(path: Path) -> EvidenceResults:
     """Load evidence results from JSON file."""
     # Import here to avoid circular imports and keep hook lightweight
     from intention_audit.models.evidence_results import EvidenceResults as ER
+
     return ER.load(path)
 
 
 def _load_structure_validation(path: Path) -> StructureValidation:
     """Load structure validation from JSON file."""
     from intention_audit.models.structure_validation import StructureValidation as SV
+
     return SV.load(path)
 
 
 def _load_intentions(path: Path) -> Intention:
     """Load intentions from YAML file."""
     from intention_audit.models.loaders import load_intentions
+
     return load_intentions(path)
 
 
@@ -329,6 +333,7 @@ def _render_evidence_failures(
 def _render_structure_violations(validation: StructureValidation) -> str:
     """Render structure validation violations."""
     from intention_audit.reporting.structure_renderer import render_structure_violations
+
     return render_structure_violations(validation)
 
 
@@ -357,7 +362,7 @@ def main() -> None:
                     "",
                     "Initialize Git first (example):",
                     "- git init",
-                    '- git add .',
+                    "- git add .",
                     '- git commit -m "chore: initial commit"',
                     "",
                     "Then rerun the agent; this hook will enforce intention-tagged commits.",
@@ -564,7 +569,9 @@ def main() -> None:
             planned_files.append(rel_path)
 
     # Validate intent ids exist in intentions.yaml
-    missing_intents = [iid for iid in sorted(set(intent_ids)) if not _intent_id_exists(intentions_text, iid)]
+    missing_intents = [
+        iid for iid in sorted(set(intent_ids)) if not _intent_id_exists(intentions_text, iid)
+    ]
     if missing_intents:
         _block(
             "\n".join(
@@ -608,7 +615,9 @@ def main() -> None:
         if unassigned:
             lines.extend(["Unassigned changed file(s):", _format_bullets(unassigned), ""])
         if extra:
-            lines.extend(["Planned file(s) that are not currently changed:", _format_bullets(extra), ""])
+            lines.extend(
+                ["Planned file(s) that are not currently changed:", _format_bullets(extra), ""]
+            )
         lines.extend(
             [
                 f"Re-run the '{COMMIT_PLANNER_AGENT}' sub-agent (session_id={session_id}, diff_hash={diff_hash})",

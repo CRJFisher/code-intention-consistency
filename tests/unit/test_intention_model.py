@@ -1,6 +1,5 @@
 """Unit tests for Intention model."""
 
-
 from intention_audit.models.intention import Intention, IntentionKind, IntentionStatus
 
 

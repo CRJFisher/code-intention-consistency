@@ -50,9 +50,7 @@ from tests.e2e.fixtures import (
 class TestStopHookBasic:
     """Test basic stop-gate blocking scenarios."""
 
-    def test_blocks_missing_intentions(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_blocks_missing_intentions(self, basic_repo: Path, project_root: Path) -> None:
         """
         When uncommitted changes exist but no intentions artifact,
         hook should block with intention-mapper instructions.
@@ -71,9 +69,7 @@ class TestStopHookBasic:
         assert "missing intentions artifact" in stderr.lower()
         assert "intention-mapper" in stderr
 
-    def test_blocks_missing_commit_plan(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_blocks_missing_commit_plan(self, basic_repo: Path, project_root: Path) -> None:
         """
         When intentions exist but no commit plan,
         hook should block with commit-planner instructions.
@@ -104,9 +100,7 @@ class TestStopHookBasic:
         assert "missing commit plan" in stderr.lower()
         assert "commit-planner" in stderr
 
-    def test_creates_commits_with_full_coverage(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_creates_commits_with_full_coverage(self, basic_repo: Path, project_root: Path) -> None:
         """
         When valid intentions and commit plan exist with full coverage,
         hook should create commits and allow stop (exit 0).
@@ -163,14 +157,13 @@ class TestStopHookBasic:
         )
         # Filter out .intent_audit/ from status
         uncommitted = [
-            line for line in status_result.stdout.strip().split("\n")
+            line
+            for line in status_result.stdout.strip().split("\n")
             if line and ".intent_audit" not in line
         ]
         assert len(uncommitted) == 0, f"Unexpected uncommitted files: {uncommitted}"
 
-    def test_blocks_incomplete_coverage(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_blocks_incomplete_coverage(self, basic_repo: Path, project_root: Path) -> None:
         """
         When commit plan doesn't cover all changed files,
         hook should block with coverage error.
@@ -216,9 +209,7 @@ class TestStopHookBasic:
         assert "unassigned" in stderr.lower() or "does not exactly cover" in stderr.lower()
         assert "module_b.py" in stderr
 
-    def test_allows_stop_no_changes(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_allows_stop_no_changes(self, basic_repo: Path, project_root: Path) -> None:
         """
         When there are no uncommitted changes,
         hook should allow stop immediately (exit 0).
@@ -247,9 +238,7 @@ class TestStopHookBasic:
 class TestStopHookMultipleCommits:
     """Test scenarios with multiple commits."""
 
-    def test_creates_multiple_commits(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_creates_multiple_commits(self, basic_repo: Path, project_root: Path) -> None:
         """
         When plan specifies multiple commits,
         hook should create each commit separately.
@@ -276,18 +265,20 @@ class TestStopHookMultipleCommits:
         assert result["success"]
 
         # Save plan with two commits
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-MULTI-IMPL",
-                files=["src/feature_x/api.py"],
-                subject="feat: add API module",
-            ),
-            full_commit_entry(
-                intent_id="INT-MULTI-TEST",
-                files=["tests/feature_x/test_api.py"],
-                subject="test: add API tests",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-MULTI-IMPL",
+                    files=["src/feature_x/api.py"],
+                    subject="feat: add API module",
+                ),
+                full_commit_entry(
+                    intent_id="INT-MULTI-TEST",
+                    files=["tests/feature_x/test_api.py"],
+                    subject="test: add API tests",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -335,8 +326,6 @@ def _check_claude_available() -> None:
         ) from None
     except subprocess.TimeoutExpired:
         raise RuntimeError("claude CLI timed out during version check") from None
-
-
 
 
 @pytest.mark.e2e
@@ -543,7 +532,9 @@ class TestStopHookBasicClaude:
 
         # Allow for at most 1 new commit (possible .gitignore update)
         new_commits = commits_after - commits_before
-        assert new_commits <= 1, f"Expected at most 1 new commit (optional .gitignore), got {new_commits}"
+        assert new_commits <= 1, (
+            f"Expected at most 1 new commit (optional .gitignore), got {new_commits}"
+        )
 
         # If there's a new commit, it shouldn't have Intent-Id (it's just .gitignore)
         if new_commits == 1:

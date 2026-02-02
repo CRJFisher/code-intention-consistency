@@ -49,9 +49,7 @@ def apply_patch(project_dir: Path, patch: str) -> bool:
     return result.returncode == 0
 
 
-def validate_patch_coverage(
-    hunks: list[Hunk], plan: CommitPlan
-) -> tuple[list[Hunk], list[Hunk]]:
+def validate_patch_coverage(hunks: list[Hunk], plan: CommitPlan) -> tuple[list[Hunk], list[Hunk]]:
     """
     Validate that a commit plan covers all hunks in the diff.
 

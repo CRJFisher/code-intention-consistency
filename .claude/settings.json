@@ -17,6 +17,10 @@
           {
             "type": "command",
             "command": "uv run python .claude/hooks/ruff_fix_hook.py"
+          },
+          {
+            "type": "command",
+            "command": "uv run python .claude/hooks/test_hook.py"
           }
         ]
       }

@@ -179,8 +179,7 @@ class TestEvidenceRepairScenario:
 
         # Introduce a bug: add() now subtracts instead of adds
         broken_content = original_content.replace(
-            "return a + b",
-            "return a - b  # BUG: wrong operation"
+            "return a + b", "return a - b  # BUG: wrong operation"
         )
         operations_file.write_text(broken_content)
 
@@ -192,11 +191,7 @@ class TestEvidenceRepairScenario:
             "INT-REPAIR-001",
             "Modify calculator operations",
             children=[
-                minimal_intention(
-                    "INT-REPAIR-IMPL",
-                    "Modify add function",
-                    kind="implementation"
-                )
+                minimal_intention("INT-REPAIR-IMPL", "Modify add function", kind="implementation")
             ],
         )
         result = save_intentions(session_id, diff_hash_broken, str(demo_repo), intentions)
@@ -233,14 +228,10 @@ class TestEvidenceRepairScenario:
         )
 
         # Create supporting artifacts
-        result = _create_structure_validation_passed(
-            session_id, diff_hash_broken, demo_repo
-        )
+        result = _create_structure_validation_passed(session_id, diff_hash_broken, demo_repo)
         assert result["success"], f"save_structure_validation failed: {result}"
 
-        result = _create_session_record_artifact(
-            session_id, diff_hash_broken, demo_repo
-        )
+        result = _create_session_record_artifact(session_id, diff_hash_broken, demo_repo)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Step 4: Run stop hook - should BLOCK due to evidence failures
@@ -261,8 +252,7 @@ class TestEvidenceRepairScenario:
         # Step 5: FIX the code - restore correct behavior but with a twist
         # Add functionality that keeps original intent visible
         fixed_content = original_content.replace(
-            "return a + b",
-            "return a + b  # Fixed: correct addition with logging potential"
+            "return a + b", "return a + b  # Fixed: correct addition with logging potential"
         )
         operations_file.write_text(fixed_content)
 
@@ -308,14 +298,10 @@ class TestEvidenceRepairScenario:
         )
 
         # Create new supporting artifacts for the fixed diff_hash
-        result = _create_structure_validation_passed(
-            session_id, diff_hash_fixed, demo_repo
-        )
+        result = _create_structure_validation_passed(session_id, diff_hash_fixed, demo_repo)
         assert result["success"], f"save_structure_validation failed: {result}"
 
-        result = _create_session_record_artifact(
-            session_id, diff_hash_fixed, demo_repo
-        )
+        result = _create_session_record_artifact(session_id, diff_hash_fixed, demo_repo)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Step 8: Run stop hook again - should ALLOW now
@@ -361,7 +347,8 @@ class TestEvidenceRepairScenario:
             check=True,
         )
         uncommitted = [
-            line for line in status_result.stdout.strip().split("\n")
+            line
+            for line in status_result.stdout.strip().split("\n")
             if line and ".intent_audit" not in line
         ]
         assert len(uncommitted) == 0, f"Unexpected uncommitted files: {uncommitted}"
@@ -393,8 +380,7 @@ class TestEvidenceRepairScenario:
         original_content = operations_file.read_text()
 
         broken_content = original_content.replace(
-            "return a + b",
-            "return 0  # BUG: always returns zero"
+            "return a + b", "return 0  # BUG: always returns zero"
         )
         operations_file.write_text(broken_content)
 
@@ -407,9 +393,7 @@ class TestEvidenceRepairScenario:
             "Test artifact keying",
             children=[
                 minimal_intention(
-                    "INT-NOARTIFACT-IMPL",
-                    "Test implementation",
-                    kind="implementation"
+                    "INT-NOARTIFACT-IMPL", "Test implementation", kind="implementation"
                 )
             ],
         )
@@ -441,10 +425,7 @@ class TestEvidenceRepairScenario:
         )
 
         # Now fix the code
-        fixed_content = original_content.replace(
-            "return a + b",
-            "return a + b  # Fixed"
-        )
+        fixed_content = original_content.replace("return a + b", "return a + b  # Fixed")
         operations_file.write_text(fixed_content)
 
         # The diff_hash has changed
@@ -500,9 +481,7 @@ class TestEvidenceRepairScenario:
             "Session A Test",
             children=[
                 minimal_intention(
-                    "INT-SESSA-IMPL",
-                    "Session A implementation",
-                    kind="implementation"
+                    "INT-SESSA-IMPL", "Session A implementation", kind="implementation"
                 )
             ],
         )
@@ -516,9 +495,7 @@ class TestEvidenceRepairScenario:
             "Session B Test",
             children=[
                 minimal_intention(
-                    "INT-SESSB-IMPL",
-                    "Session B implementation",
-                    kind="implementation"
+                    "INT-SESSB-IMPL", "Session B implementation", kind="implementation"
                 )
             ],
         )

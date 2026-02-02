@@ -175,9 +175,7 @@ class TestStructureOverrideScenario:
         # Step 1: Create a file change OUTSIDE the payments code_home boundary
         # The payments functionality has code_home: ["src/payments/"]
         # But we're creating a file in src/other_domain/
-        violation_file = (
-            structure_repo / "src" / "other_domain" / "cross_boundary_util.py"
-        )
+        violation_file = structure_repo / "src" / "other_domain" / "cross_boundary_util.py"
         violation_file.write_text(
             "# Cross-boundary utility - intentionally placed here\n"
             "# This module serves both payments and other_domain\n"
@@ -259,27 +257,20 @@ class TestStructureOverrideScenario:
             "passed": False,
             "override_rationale": None,  # Hook reads override from commit_plan
         }
-        result = save_structure_validation(
-            session_id, diff_hash, str(structure_repo), validation
-        )
+        result = save_structure_validation(session_id, diff_hash, str(structure_repo), validation)
         assert result["success"], f"save_structure_validation failed: {result}"
 
         # Step 6: Create session record (required by hook)
         record = minimal_session_record(session_id, diff_hash)
-        result = save_session_record(
-            session_id, str(structure_repo), diff_hash, record
-        )
+        result = save_session_record(session_id, str(structure_repo), diff_hash, record)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Step 7: Run stop hook - should succeed due to override rationale
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Step 8: Verify hook ALLOWS commits (exit code 0)
         assert exit_code == 0, (
-            f"Expected exit code 0 (allowed with override), got {exit_code}.\n"
-            f"stderr: {stderr}"
+            f"Expected exit code 0 (allowed with override), got {exit_code}.\nstderr: {stderr}"
         )
 
         # Step 9: Verify commit was created with proper trailers
@@ -306,8 +297,7 @@ class TestStructureOverrideScenario:
             check=True,
         )
         assert "INT-OVERRIDE" in log_with_trailers.stdout, (
-            f"Expected Intent-Id trailer with INT-OVERRIDE.\n"
-            f"Trailers: {log_with_trailers.stdout}"
+            f"Expected Intent-Id trailer with INT-OVERRIDE.\nTrailers: {log_with_trailers.stdout}"
         )
 
     def test_override_rationale_missing_still_blocks(
@@ -321,9 +311,7 @@ class TestStructureOverrideScenario:
         rationale is explicitly provided.
         """
         # Create a file change outside code_home
-        violation_file = (
-            structure_repo / "src" / "other_domain" / "no_override_util.py"
-        )
+        violation_file = structure_repo / "src" / "other_domain" / "no_override_util.py"
         violation_file.write_text(
             "# File without override rationale\n"
             "def utility_without_justification():\n"
@@ -396,34 +384,24 @@ class TestStructureOverrideScenario:
             "passed": False,
             "override_rationale": None,
         }
-        result = save_structure_validation(
-            session_id, diff_hash, str(structure_repo), validation
-        )
+        result = save_structure_validation(session_id, diff_hash, str(structure_repo), validation)
         assert result["success"], f"save_structure_validation failed: {result}"
 
         # Create session record
         record = minimal_session_record(session_id, diff_hash)
         record["session_id"] = session_id
-        result = save_session_record(
-            session_id, str(structure_repo), diff_hash, record
-        )
+        result = save_session_record(session_id, str(structure_repo), diff_hash, record)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Run stop hook - should BLOCK without override
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Verify hook blocks with exit code 2
-        assert exit_code == 2, (
-            f"Expected exit code 2 (blocked), got {exit_code}.\n"
-            f"stderr: {stderr}"
-        )
+        assert exit_code == 2, f"Expected exit code 2 (blocked), got {exit_code}.\nstderr: {stderr}"
 
         # Verify structure violation message
         assert "structure validation failed" in stderr.lower(), (
-            f"Expected 'structure validation failed' in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected 'structure validation failed' in stderr.\nstderr: {stderr}"
         )
 
     def test_override_rationale_empty_string_still_blocks(
@@ -436,9 +414,7 @@ class TestStructureOverrideScenario:
         Empty rationale should not bypass the structure check.
         """
         # Create a file change outside code_home
-        violation_file = (
-            structure_repo / "src" / "other_domain" / "empty_override_util.py"
-        )
+        violation_file = structure_repo / "src" / "other_domain" / "empty_override_util.py"
         violation_file.write_text(
             "# File with empty override rationale\n"
             "def utility_with_empty_rationale():\n"
@@ -511,23 +487,17 @@ class TestStructureOverrideScenario:
             "passed": False,
             "override_rationale": None,
         }
-        result = save_structure_validation(
-            session_id, diff_hash, str(structure_repo), validation
-        )
+        result = save_structure_validation(session_id, diff_hash, str(structure_repo), validation)
         assert result["success"], f"save_structure_validation failed: {result}"
 
         # Create session record
         record = minimal_session_record(session_id, diff_hash)
         record["session_id"] = session_id
-        result = save_session_record(
-            session_id, str(structure_repo), diff_hash, record
-        )
+        result = save_session_record(session_id, str(structure_repo), diff_hash, record)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Run stop hook - should BLOCK with empty override
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Verify hook blocks with exit code 2
         assert exit_code == 2, (
@@ -537,6 +507,5 @@ class TestStructureOverrideScenario:
 
         # Verify structure violation message
         assert "structure validation failed" in stderr.lower(), (
-            f"Expected 'structure validation failed' in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected 'structure validation failed' in stderr.\nstderr: {stderr}"
         )

@@ -150,9 +150,7 @@ def _save_session_record_to_artifact_dir(
 class TestEvidencePassingScenario:
     """Test scenarios where evidence tests pass and commits are allowed."""
 
-    def test_evidence_passing_allows_commits(
-        self, demo_repo: Path, project_root: Path
-    ) -> None:
+    def test_evidence_passing_allows_commits(self, demo_repo: Path, project_root: Path) -> None:
         """
         Full flow where evidence tests pass and commits are created.
 
@@ -194,14 +192,16 @@ class TestEvidencePassingScenario:
         assert result["success"], f"save_intentions failed: {result}"
 
         # Step 3: Create commit plan artifact
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-EVIDENCE-001-A",
-                files=["src/calculator/operations.py"],
-                subject="docs: enhance operations module docstring",
-                functionality_intent_id="INT-EVIDENCE-001-A",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-EVIDENCE-001-A",
+                    files=["src/calculator/operations.py"],
+                    subject="docs: enhance operations module docstring",
+                    functionality_intent_id="INT-EVIDENCE-001-A",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(demo_repo), plan)
         assert result["success"], f"save_commit_plan failed: {result}"
 
@@ -211,9 +211,7 @@ class TestEvidencePassingScenario:
             "tests/calculator/test_operations.py::test_add_negative",
             "tests/calculator/test_operations.py::test_subtract_positive",
         ]
-        result = run_evidence_tests(
-            session_id, str(demo_repo), diff_hash, test_selectors
-        )
+        result = run_evidence_tests(session_id, str(demo_repo), diff_hash, test_selectors)
         assert result["success"], f"run_evidence_tests failed: {result}"
         assert result["all_passed"], f"Evidence tests did not pass: {result}"
 
@@ -259,7 +257,9 @@ class TestEvidencePassingScenario:
             check=True,
         )
         intent_id = trailer_result.stdout.strip()
-        assert intent_id == "INT-EVIDENCE-001-A", f"Expected Intent-Id 'INT-EVIDENCE-001-A', got '{intent_id}'"
+        assert intent_id == "INT-EVIDENCE-001-A", (
+            f"Expected Intent-Id 'INT-EVIDENCE-001-A', got '{intent_id}'"
+        )
 
         # Step 10: Verify no uncommitted changes remain
         status_result = subprocess.run(
@@ -271,7 +271,8 @@ class TestEvidencePassingScenario:
         )
         # Filter out .intent_audit/ from status
         uncommitted = [
-            line for line in status_result.stdout.strip().split("\n")
+            line
+            for line in status_result.stdout.strip().split("\n")
             if line and ".intent_audit" not in line
         ]
         assert len(uncommitted) == 0, f"Unexpected uncommitted files: {uncommitted}"
@@ -338,19 +339,21 @@ class TestEvidencePassingScenario:
         assert result["success"], f"save_intentions failed: {result}"
 
         # Step 3: Create two-commit plan
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-MULTI-001-IMPL",
-                files=["src/calculator/operations.py"],
-                subject="refactor: enhance operations implementation",
-                functionality_intent_id="INT-MULTI-001-IMPL",
-            ),
-            full_commit_entry(
-                intent_id="INT-MULTI-001-TEST",
-                files=["tests/calculator/test_operations.py"],
-                subject="docs: enhance test documentation",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-MULTI-001-IMPL",
+                    files=["src/calculator/operations.py"],
+                    subject="refactor: enhance operations implementation",
+                    functionality_intent_id="INT-MULTI-001-IMPL",
+                ),
+                full_commit_entry(
+                    intent_id="INT-MULTI-001-TEST",
+                    files=["tests/calculator/test_operations.py"],
+                    subject="docs: enhance test documentation",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(demo_repo), plan)
         assert result["success"], f"save_commit_plan failed: {result}"
 
@@ -358,9 +361,7 @@ class TestEvidencePassingScenario:
         test_selectors = [
             "tests/calculator/test_operations.py::test_add_positive",
         ]
-        result = run_evidence_tests(
-            session_id, str(demo_repo), diff_hash, test_selectors
-        )
+        result = run_evidence_tests(session_id, str(demo_repo), diff_hash, test_selectors)
         assert result["success"], f"run_evidence_tests failed: {result}"
         assert result["all_passed"], f"Evidence tests did not pass: {result}"
 
@@ -442,28 +443,30 @@ class TestEvidencePassingScenario:
         assert result["success"], f"save_intentions failed: {result}"
 
         # Create commit plan
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-FILE-001-A",
-                files=["src/calculator/operations.py"],
-                subject="chore: add end of file marker",
-                functionality_intent_id="INT-FILE-001-A",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-FILE-001-A",
+                    files=["src/calculator/operations.py"],
+                    subject="chore: add end of file marker",
+                    functionality_intent_id="INT-FILE-001-A",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(demo_repo), plan)
         assert result["success"], f"save_commit_plan failed: {result}"
 
         # Run evidence tests with FILE-LEVEL selector
         test_selectors = ["tests/calculator/test_operations.py"]
-        result = run_evidence_tests(
-            session_id, str(demo_repo), diff_hash, test_selectors
-        )
+        result = run_evidence_tests(session_id, str(demo_repo), diff_hash, test_selectors)
         assert result["success"], f"run_evidence_tests failed: {result}"
         assert result["all_passed"], f"Evidence tests did not pass: {result}"
 
         # Verify multiple tests were run (file contains multiple test functions)
         assert result["results"], "Expected multiple test results"
-        assert len(result["results"]) >= 5, f"Expected at least 5 tests from file, got {len(result['results'])}"
+        assert len(result["results"]) >= 5, (
+            f"Expected at least 5 tests from file, got {len(result['results'])}"
+        )
 
         # Create remaining artifacts
         structure_validation = _create_passing_structure_validation()

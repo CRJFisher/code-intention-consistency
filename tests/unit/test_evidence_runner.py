@@ -216,9 +216,7 @@ class TestRunEvidenceTestsMissingFiles:
 
     def test_missing_test_file_handled_gracefully(self, tmp_path: Path) -> None:
         """Missing test file should result in error, not crash."""
-        results = run_evidence_tests(
-            tmp_path, ["nonexistent_test.py::test_something"]
-        )
+        results = run_evidence_tests(tmp_path, ["nonexistent_test.py::test_something"])
 
         # Should fail but not crash
         assert results.all_passed is False
@@ -236,9 +234,7 @@ def test_exists():
 """
         )
 
-        results = run_evidence_tests(
-            tmp_path, ["test_partial.py::test_does_not_exist"]
-        )
+        results = run_evidence_tests(tmp_path, ["test_partial.py::test_does_not_exist"])
 
         assert results.all_passed is False
         # Should detect that the test wasn't found
@@ -293,9 +289,7 @@ def test_needs_missing_fixture(nonexistent_fixture):
 """
         )
 
-        results = run_evidence_tests(
-            tmp_path, ["test_fixture.py::test_needs_missing_fixture"]
-        )
+        results = run_evidence_tests(tmp_path, ["test_fixture.py::test_needs_missing_fixture"])
 
         assert results.all_passed is False
 

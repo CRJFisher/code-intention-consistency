@@ -1,6 +1,5 @@
 """Unit tests for diff utilities."""
 
-
 from intention_audit.diff.hunks import Hunk, compute_diff_hash, parse_unified_diff
 from intention_audit.diff.patch import validate_patch_coverage
 from intention_audit.models.commit_plan import CommitEntry, CommitPlan

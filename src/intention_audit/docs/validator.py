@@ -99,9 +99,7 @@ def validate_docs_links(
 
     for intention in intentions:
         # Get the kind value (handle both enum and string)
-        kind_value = (
-            intention.kind.value if hasattr(intention.kind, "value") else intention.kind
-        )
+        kind_value = intention.kind.value if hasattr(intention.kind, "value") else intention.kind
 
         # Skip non-behavior-affecting kinds unless require_all is True
         if not require_all and kind_value not in BEHAVIOR_AFFECTING_KINDS:

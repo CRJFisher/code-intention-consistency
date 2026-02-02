@@ -1,14 +1,14 @@
 """Unit tests for code_home boundary checker."""
 
+from intention_audit.models.commit_plan import CommitEntry, CommitPlan
+from intention_audit.models.intention import Intention, IntentionKind
 from intention_audit.structure.boundary import (
     BoundaryViolation,
-    check_code_home_boundaries,
     _find_functionality_ancestor,
     _find_intention_by_id,
     _path_within_prefixes,
+    check_code_home_boundaries,
 )
-from intention_audit.models.intention import Intention, IntentionKind, IntentionStatus
-from intention_audit.models.commit_plan import CommitPlan, CommitEntry
 
 
 class TestBoundaryViolation:

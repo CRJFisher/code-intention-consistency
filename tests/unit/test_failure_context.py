@@ -126,9 +126,7 @@ class TestBuildFailureContextSingleFailure:
         assert ctx.linked_docs == ["docs/feature.md"]
         assert ctx.code_scope == ["src/auth/"]
 
-    def test_failure_context_has_correct_path(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_failure_context_has_correct_path(self, sample_tree_with_evidence: Intention) -> None:
         """Test that intention_path is correctly computed."""
         evidence_results = EvidenceResults(
             results=[
@@ -149,9 +147,7 @@ class TestBuildFailureContextSingleFailure:
 class TestBuildFailureContextMultipleFailures:
     """Tests for multiple failures on the same intention."""
 
-    def test_multiple_failures_same_intention(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_multiple_failures_same_intention(self, sample_tree_with_evidence: Intention) -> None:
         """Test that multiple test failures for same intention are aggregated."""
         evidence_results = EvidenceResults(
             results=[
@@ -181,9 +177,7 @@ class TestBuildFailureContextMultipleFailures:
         assert "tests/test_auth.py::test_login" in ctx.failed_tests
         assert "tests/test_auth.py::test_logout" in ctx.failed_tests
 
-    def test_duplicate_failures_not_repeated(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_duplicate_failures_not_repeated(self, sample_tree_with_evidence: Intention) -> None:
         """Test that duplicate failures are not added multiple times."""
         evidence_results = EvidenceResults(
             results=[
@@ -247,9 +241,7 @@ class TestBuildFailureContextCrossIntentions:
 class TestBuildFailureContextRendering:
     """Tests for output format and rendering."""
 
-    def test_failure_context_dataclass_fields(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_failure_context_dataclass_fields(self, sample_tree_with_evidence: Intention) -> None:
         """Verify IntentionFailureContext has all expected fields."""
         evidence_results = EvidenceResults(
             results=[
@@ -368,9 +360,7 @@ class TestBuildFailureContextMissingDocs:
 class TestBuildFailureContextNoFailures:
     """Tests for all-passing scenario."""
 
-    def test_no_failures_returns_empty_list(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_no_failures_returns_empty_list(self, sample_tree_with_evidence: Intention) -> None:
         """Test that all passing tests results in empty context list."""
         evidence_results = EvidenceResults(
             results=[
@@ -392,9 +382,7 @@ class TestBuildFailureContextNoFailures:
 
         assert contexts == []
 
-    def test_empty_results_returns_empty_list(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_empty_results_returns_empty_list(self, sample_tree_with_evidence: Intention) -> None:
         """Test that empty evidence results returns empty context list."""
         evidence_results = EvidenceResults(
             results=[],
@@ -427,9 +415,7 @@ class TestBuildFailureContextEdgeCases:
 
         assert contexts == []
 
-    def test_error_results_are_included(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_error_results_are_included(self, sample_tree_with_evidence: Intention) -> None:
         """Test that errored tests (not just assertion failures) are included."""
         evidence_results = EvidenceResults(
             results=[
@@ -447,9 +433,7 @@ class TestBuildFailureContextEdgeCases:
         assert len(contexts) == 1
         assert "tests/test_feature.py::test_add" in contexts[0].failed_tests
 
-    def test_mixed_pass_fail_results(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_mixed_pass_fail_results(self, sample_tree_with_evidence: Intention) -> None:
         """Test with mix of passed and failed tests."""
         evidence_results = EvidenceResults(
             results=[
@@ -501,9 +485,7 @@ class TestBuildFailureContextEdgeCases:
         assert len(contexts) == 1
         assert contexts[0].code_scope == []
 
-    def test_docs_are_copied_not_referenced(
-        self, sample_tree_with_evidence: Intention
-    ) -> None:
+    def test_docs_are_copied_not_referenced(self, sample_tree_with_evidence: Intention) -> None:
         """Test that linked_docs is a copy, not a reference to original."""
         evidence_results = EvidenceResults(
             results=[

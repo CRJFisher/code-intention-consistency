@@ -190,7 +190,10 @@ class TestStructureAlignmentPass:
         # Step 1: Make a change WITHIN the code_home (src/payments/)
         processor_file = structure_repo / "src" / "payments" / "processor.py"
         original_content = processor_file.read_text()
-        new_content = original_content + "\n\ndef refund_payment(amount: float) -> dict:\n    \"\"\"Refund a payment.\"\"\"\n    return {\"status\": \"refunded\", \"amount\": amount}\n"
+        new_content = (
+            original_content
+            + '\n\ndef refund_payment(amount: float) -> dict:\n    """Refund a payment."""\n    return {"status": "refunded", "amount": amount}\n'
+        )
         processor_file.write_text(new_content)
 
         # Step 2: Create all artifacts
@@ -198,9 +201,7 @@ class TestStructureAlignmentPass:
         diff_hash = compute_diff_hash(structure_repo)
 
         # Save intentions (with code_home for payments)
-        result = _create_intentions_for_payments(
-            session_id, diff_hash, structure_repo
-        )
+        result = _create_intentions_for_payments(session_id, diff_hash, structure_repo)
         assert result["success"], f"save_intentions failed: {result}"
 
         # Save commit plan covering the changed file
@@ -213,27 +214,19 @@ class TestStructureAlignmentPass:
         assert result["success"], f"save_commit_plan failed: {result}"
 
         # Save structure validation with passed=true
-        result = _create_structure_validation_passed(
-            session_id, diff_hash, structure_repo
-        )
+        result = _create_structure_validation_passed(session_id, diff_hash, structure_repo)
         assert result["success"], f"save_structure_validation failed: {result}"
 
         # Save session record
-        result = _create_session_record(
-            session_id, diff_hash, structure_repo
-        )
+        result = _create_session_record(session_id, diff_hash, structure_repo)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Step 3: Run stop hook
-        exit_code, stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Step 4: Verify commits are created successfully
         assert exit_code == 0, (
-            f"Expected exit code 0 (success), got {exit_code}.\n"
-            f"stdout: {stdout}\n"
-            f"stderr: {stderr}"
+            f"Expected exit code 0 (success), got {exit_code}.\nstdout: {stdout}\nstderr: {stderr}"
         )
 
         # Verify commit was created with Intent-Id trailer
@@ -256,7 +249,9 @@ class TestStructureAlignmentPass:
             check=True,
         )
         intent_id = trailer_result.stdout.strip()
-        assert intent_id == "INT-T059-001", f"Expected Intent-Id trailer 'INT-T059-001', got: {intent_id}"
+        assert intent_id == "INT-T059-001", (
+            f"Expected Intent-Id trailer 'INT-T059-001', got: {intent_id}"
+        )
 
         # Verify no uncommitted changes remain (except .intent_audit/)
         status_result = subprocess.run(
@@ -267,7 +262,8 @@ class TestStructureAlignmentPass:
             check=True,
         )
         uncommitted = [
-            line for line in status_result.stdout.strip().split("\n")
+            line
+            for line in status_result.stdout.strip().split("\n")
             if line and ".intent_audit" not in line
         ]
         assert len(uncommitted) == 0, f"Unexpected uncommitted files: {uncommitted}"
@@ -292,9 +288,9 @@ class TestStructureAlignmentPass:
         new_file.write_text(
             '"""Currency utilities for payment processing."""\n\n'
             'SUPPORTED_CURRENCIES = ["USD", "EUR", "GBP"]\n\n'
-            'def is_supported(currency: str) -> bool:\n'
+            "def is_supported(currency: str) -> bool:\n"
             '    """Check if currency is supported."""\n'
-            '    return currency.upper() in SUPPORTED_CURRENCIES\n'
+            "    return currency.upper() in SUPPORTED_CURRENCIES\n"
         )
 
         session_id = "test-t059-002"
@@ -315,9 +311,7 @@ class TestStructureAlignmentPass:
         )
         assert result["success"]
 
-        result = _create_structure_validation_passed(
-            session_id, diff_hash, structure_repo
-        )
+        result = _create_structure_validation_passed(session_id, diff_hash, structure_repo)
         assert result["success"]
 
         result = _create_session_record(
@@ -326,9 +320,7 @@ class TestStructureAlignmentPass:
         assert result["success"]
 
         # Run stop hook
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         assert exit_code == 0, f"Hook failed: {stderr}"
 
@@ -369,9 +361,7 @@ class TestStructureAlignmentPass:
 
         init_file = structure_repo / "src" / "payments" / "__init__.py"
         init_content = init_file.read_text() if init_file.exists() else ""
-        init_file.write_text(
-            init_content + '\n__version__ = "1.1.0"\n'
-        )
+        init_file.write_text(init_content + '\n__version__ = "1.1.0"\n')
 
         session_id = "test-t059-003"
         diff_hash = compute_diff_hash(structure_repo)
@@ -391,9 +381,7 @@ class TestStructureAlignmentPass:
         )
         assert result["success"]
 
-        result = _create_structure_validation_passed(
-            session_id, diff_hash, structure_repo
-        )
+        result = _create_structure_validation_passed(session_id, diff_hash, structure_repo)
         assert result["success"]
 
         result = _create_session_record(
@@ -402,9 +390,7 @@ class TestStructureAlignmentPass:
         assert result["success"]
 
         # Run stop hook
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         assert exit_code == 0, f"Hook failed: {stderr}"
 

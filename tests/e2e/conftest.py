@@ -65,9 +65,7 @@ def compute_diff_hash(repo_path: Path) -> str:
     return hashlib.sha256(combined.encode()).hexdigest()[:16]
 
 
-def run_stop_hook(
-    repo_path: Path, session_id: str, project_root: Path
-) -> tuple[int, str, str]:
+def run_stop_hook(repo_path: Path, session_id: str, project_root: Path) -> tuple[int, str, str]:
     """
     Run stop hook as subprocess, return (exit_code, stdout, stderr).
 
@@ -82,10 +80,12 @@ def run_stop_hook(
     hook_path = project_root / "src" / "intention_audit" / "hooks" / "stop_hook.py"
 
     # Prepare hook input JSON (what Claude Code would send)
-    hook_input = json.dumps({
-        "session_id": session_id,
-        "cwd": str(repo_path),
-    })
+    hook_input = json.dumps(
+        {
+            "session_id": session_id,
+            "cwd": str(repo_path),
+        }
+    )
 
     env = os.environ.copy()
     env["CLAUDE_PROJECT_DIR"] = str(repo_path)
@@ -344,7 +344,7 @@ def setup_claude_config(
                     "hooks": [
                         {
                             "type": "command",
-                            "command": f"python {project_root}/src/intention_audit/hooks/stop_hook.py"
+                            "command": f"python {project_root}/src/intention_audit/hooks/stop_hook.py",
                         }
                     ]
                 }
@@ -434,9 +434,7 @@ def _extract_mcp_calls(transcript_path: Path) -> list[dict[str, Any]]:
                             if item.get("type") == "tool_result":
                                 tool_use_id = item.get("tool_use_id", "")
                                 if tool_use_id in pending_calls:
-                                    pending_calls[tool_use_id]["result"] = item.get(
-                                        "content", ""
-                                    )
+                                    pending_calls[tool_use_id]["result"] = item.get("content", "")
                                     pending_calls[tool_use_id]["is_error"] = item.get(
                                         "is_error", False
                                     )
@@ -533,9 +531,7 @@ def _capture_git_state(repo_path: Path) -> tuple[str, str]:
         capture_output=True,
         text=True,
     )
-    git_status = (
-        status_result.stdout if status_result.returncode == 0 else status_result.stderr
-    )
+    git_status = status_result.stdout if status_result.returncode == 0 else status_result.stderr
 
     return git_log, git_status
 

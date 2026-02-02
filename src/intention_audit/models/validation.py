@@ -12,7 +12,12 @@ from pathlib import Path
 from jsonschema import Draft202012Validator
 
 # Schema directory relative to this module
-_SCHEMA_DIR = Path(__file__).parent.parent.parent.parent.parent / "specs" / "001-intent-audit-trail" / "contracts"
+_SCHEMA_DIR = (
+    Path(__file__).parent.parent.parent.parent.parent
+    / "specs"
+    / "001-intent-audit-trail"
+    / "contracts"
+)
 
 
 def _load_schema(name: str) -> dict:
@@ -227,9 +232,14 @@ def _validate_structure_validation_basic(data: dict) -> list[str]:
             elif not isinstance(violation["intent_id"], str):
                 errors.append(f"violations.{i}.intent_id: must be a string")
             # Optional fields type checks
-            if "functionality_intent_id" in violation and violation["functionality_intent_id"] is not None:
+            if (
+                "functionality_intent_id" in violation
+                and violation["functionality_intent_id"] is not None
+            ):
                 if not isinstance(violation["functionality_intent_id"], str):
-                    errors.append(f"violations.{i}.functionality_intent_id: must be a string or null")
+                    errors.append(
+                        f"violations.{i}.functionality_intent_id: must be a string or null"
+                    )
             if "violating_paths" in violation and violation["violating_paths"] is not None:
                 if not isinstance(violation["violating_paths"], list):
                     errors.append(f"violations.{i}.violating_paths: must be an array or null")

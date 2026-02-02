@@ -208,7 +208,9 @@ class TestEvidenceSupersedePath:
 
         # Add a multiply function - this is new functionality that supersedes
         # the simple add/subtract pattern with a more complete calculator
-        updated_content = original_content + """
+        updated_content = (
+            original_content
+            + """
 
 def multiply(a: int, b: int) -> int:
     \"\"\"Multiply two numbers.
@@ -222,6 +224,7 @@ def multiply(a: int, b: int) -> int:
     \"\"\"
     return a * b
 """
+        )
         operations_file.write_text(updated_content)
 
         # Also create a new test file for the new functionality
@@ -346,9 +349,7 @@ def test_multiply_zero():
         # Create supporting artifacts
         artifact_dir = demo_repo / ".intent_audit" / session_id / diff_hash
         _create_structure_validation_artifact(artifact_dir)
-        _create_session_record_artifact(
-            artifact_dir, session_id, diff_hash, ["INT-SUPERSEDE-001"]
-        )
+        _create_session_record_artifact(artifact_dir, session_id, diff_hash, ["INT-SUPERSEDE-001"])
 
         # Step 6: Run stop hook - should ALLOW because:
         # - The commit plan references the NEW intention
@@ -378,9 +379,7 @@ def test_multiply_zero():
         """
         # Make a change
         operations_file = demo_repo / "src" / "calculator" / "operations.py"
-        operations_file.write_text(
-            operations_file.read_text() + "\n# Added for supersede test\n"
-        )
+        operations_file.write_text(operations_file.read_text() + "\n# Added for supersede test\n")
 
         session_id = "test-supersede-002"
         diff_hash = compute_diff_hash(demo_repo)
@@ -448,9 +447,7 @@ def test_multiply_zero():
 
         artifact_dir = demo_repo / ".intent_audit" / session_id / diff_hash
         _create_structure_validation_artifact(artifact_dir)
-        _create_session_record_artifact(
-            artifact_dir, session_id, diff_hash, ["INT-NEW-002"]
-        )
+        _create_session_record_artifact(artifact_dir, session_id, diff_hash, ["INT-NEW-002"])
 
         # Run stop hook - behavior depends on whether empty evidence is acceptable
         # For a functionality intention without evidence_tests, the hook should allow
@@ -593,15 +590,12 @@ def test_divide_by_zero():
 
         artifact_dir = demo_repo / ".intent_audit" / session_id / diff_hash
         _create_structure_validation_artifact(artifact_dir)
-        _create_session_record_artifact(
-            artifact_dir, session_id, diff_hash, [new_intent_id]
-        )
+        _create_session_record_artifact(artifact_dir, session_id, diff_hash, [new_intent_id])
 
         # Run stop hook
         exit_code, _stdout, stderr = run_stop_hook(demo_repo, session_id, project_root)
         assert exit_code == 0, (
-            f"Expected stop hook to allow, got exit code {exit_code}.\n"
-            f"stderr: {stderr}"
+            f"Expected stop hook to allow, got exit code {exit_code}.\nstderr: {stderr}"
         )
 
         # Verify the commit was created with the NEW intent ID in trailer

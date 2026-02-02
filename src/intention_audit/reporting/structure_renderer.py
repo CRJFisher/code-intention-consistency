@@ -41,9 +41,7 @@ def format_suggested_fixes(violation: StructureViolation) -> list[str]:
                 fixes.append(f"Move file to {primary_prefix}{filename}")
 
             if len(violation.violating_paths) > 3:
-                fixes.append(
-                    f"... and {len(violation.violating_paths) - 3} more file(s)"
-                )
+                fixes.append(f"... and {len(violation.violating_paths) - 3} more file(s)")
 
         # Suggest creating a new functionality for the domain
         if violation.violating_paths:
@@ -53,19 +51,13 @@ def format_suggested_fixes(violation: StructureViolation) -> list[str]:
                 domain_parts = first_path.split("/")
                 if len(domain_parts) >= 2:
                     domain_path = "/".join(domain_parts[:2])
-                    fixes.append(
-                        f"Create new functionality intention for {domain_path}/"
-                    )
+                    fixes.append(f"Create new functionality intention for {domain_path}/")
 
         fixes.append("Add override rationale to commit plan if intentional")
 
     elif violation.type == "missing_code_home":
-        fixes.append(
-            "Add code_home field to the functionality intention"
-        )
-        fixes.append(
-            "Specify the directory prefix(es) where implementation should reside"
-        )
+        fixes.append("Add code_home field to the functionality intention")
+        fixes.append("Specify the directory prefix(es) where implementation should reside")
 
     elif violation.type == "orphan_files":
         fixes.append("Create functionality intention to cover these files")
@@ -101,7 +93,9 @@ def render_structure_violations(validation: StructureValidation) -> str:
     """
     # Handle empty violations gracefully
     if not validation.violations:
-        return "Structure Alignment: PASSED\n\nAll changes are within expected code_home boundaries."
+        return (
+            "Structure Alignment: PASSED\n\nAll changes are within expected code_home boundaries."
+        )
 
     # Handle override case
     if validation.override_rationale:

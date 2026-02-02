@@ -1,6 +1,5 @@
 """Unit tests for schema validation utilities."""
 
-
 from intention_audit.models.validation import (
     validate_commit_plan,
     validate_intentions,

@@ -103,8 +103,7 @@ class TestEvidenceRegressionScenario:
 
         # Introduce a bug: add() now subtracts instead of adds
         broken_content = original_content.replace(
-            "return a + b",
-            "return a - b  # BUG: wrong operation"
+            "return a + b", "return a - b  # BUG: wrong operation"
         )
         operations_file.write_text(broken_content)
 
@@ -121,9 +120,7 @@ class TestEvidenceRegressionScenario:
             "Modify calculator operations",
             children=[
                 minimal_intention(
-                    "INT-REGRESSION-IMPL",
-                    "Modify add function",
-                    kind="implementation"
+                    "INT-REGRESSION-IMPL", "Modify add function", kind="implementation"
                 )
             ],
         )
@@ -156,7 +153,9 @@ class TestEvidenceRegressionScenario:
         )
 
         # Verify evidence tests failed as expected
-        assert evidence_result["success"], f"run_evidence_tests should succeed (even with failures): {evidence_result}"
+        assert evidence_result["success"], (
+            f"run_evidence_tests should succeed (even with failures): {evidence_result}"
+        )
         assert evidence_result["all_passed"] is False, (
             f"Expected tests to FAIL due to regression bug, but all_passed={evidence_result['all_passed']}"
         )
@@ -231,9 +230,7 @@ class TestEvidenceRegressionScenario:
             "Document calculator module",
             children=[
                 minimal_intention(
-                    "INT-DOCS-IMPL",
-                    "Add module documentation",
-                    kind="implementation"
+                    "INT-DOCS-IMPL", "Add module documentation", kind="implementation"
                 )
             ],
         )
@@ -303,8 +300,7 @@ class TestEvidenceRegressionScenario:
 
         # Introduce a bug: add() returns 0 instead of a + b
         broken_content = original_content.replace(
-            "return a + b",
-            "return 0  # BUG: always returns zero"
+            "return a + b", "return 0  # BUG: always returns zero"
         )
         operations_file.write_text(broken_content)
 
@@ -316,11 +312,7 @@ class TestEvidenceRegressionScenario:
             "INT-PARTIAL-001",
             "Modify calculator",
             children=[
-                minimal_intention(
-                    "INT-PARTIAL-IMPL",
-                    "Modify operations",
-                    kind="implementation"
-                )
+                minimal_intention("INT-PARTIAL-IMPL", "Modify operations", kind="implementation")
             ],
         )
         result = save_intentions(session_id, diff_hash, str(demo_repo), intentions)
@@ -351,9 +343,7 @@ class TestEvidenceRegressionScenario:
 
         # Should report not all passed (mixed results)
         assert evidence_result["success"]
-        assert evidence_result["all_passed"] is False, (
-            "Expected mixed results (some failures)"
-        )
+        assert evidence_result["all_passed"] is False, "Expected mixed results (some failures)"
 
         # Create other artifacts
         artifact_dir = demo_repo / ".intent_audit" / session_id / diff_hash

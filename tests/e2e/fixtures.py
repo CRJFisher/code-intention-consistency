@@ -31,7 +31,9 @@ def minimal_intention(intent_id: str, title: str, kind: str = "functionality") -
     }
 
 
-def intention_tree(root_intent_id: str, root_title: str, children: list[dict] | None = None) -> dict[str, Any]:
+def intention_tree(
+    root_intent_id: str, root_title: str, children: list[dict] | None = None
+) -> dict[str, Any]:
     """
     Create an intention tree with root and optional children.
 

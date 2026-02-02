@@ -74,7 +74,9 @@ class Intention:
 
         # Handle status enum
         status_value = data.get("status", "planned")
-        status = IntentionStatus(status_value.lower()) if isinstance(status_value, str) else status_value
+        status = (
+            IntentionStatus(status_value.lower()) if isinstance(status_value, str) else status_value
+        )
 
         # Handle children recursively
         children_data = data.get("children", [])

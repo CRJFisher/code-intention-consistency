@@ -212,9 +212,7 @@ class TestDeepTree:
         level2 = Intention(
             id="L2", title="Level 2", kind=IntentionKind.FUNCTIONALITY, children=[level3]
         )
-        level1 = Intention(
-            id="L1", title="Level 1", kind=IntentionKind.GOAL, children=[level2]
-        )
+        level1 = Intention(id="L1", title="Level 1", kind=IntentionKind.GOAL, children=[level2])
 
         assert find_intention(level1, "L4") is not None
         assert get_intention_path(level1, "L4") == "Level 1/Level 2/Level 3/Level 4"

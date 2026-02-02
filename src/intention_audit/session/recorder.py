@@ -105,8 +105,4 @@ def list_session_records(project_dir: Path) -> list[str]:
     if not sessions_dir.exists():
         return []
 
-    return [
-        f.stem
-        for f in sessions_dir.glob("*.json")
-        if f.is_file()
-    ]
+    return [f.stem for f in sessions_dir.glob("*.json") if f.is_file()]

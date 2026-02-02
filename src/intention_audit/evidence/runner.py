@@ -115,9 +115,7 @@ def run_evidence_tests(project_dir: Path, test_selectors: list[str]) -> Evidence
     return results
 
 
-def _parse_pytest_output(
-    output: str, results: EvidenceResults, selectors: list[str]
-) -> None:
+def _parse_pytest_output(output: str, results: EvidenceResults, selectors: list[str]) -> None:
     """Parse pytest verbose output to extract test results."""
     lines = output.split("\n")
 
@@ -134,9 +132,7 @@ def _parse_pytest_output(
         # tests/test_foo.py::test_baz FAILED
         for selector in selectors:
             # Check if this line contains results for this selector
-            if selector in line or any(
-                part in line for part in selector.split("::")
-            ):
+            if selector in line or any(part in line for part in selector.split("::")):
                 if " PASSED" in line:
                     results.passed.append(
                         TestOutput(

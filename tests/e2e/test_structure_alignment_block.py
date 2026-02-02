@@ -213,14 +213,16 @@ class TestStructureAlignmentBlock:
         # Step 3: Create commit plan that maps the file to the payments intention
         # This creates the boundary violation - file is in src/other_domain/
         # but commit is assigned to an intention under payments functionality
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-STRUCT-IMPL",
-                files=["src/other_domain/payment_leak.py"],
-                subject="feat: add payment leak function",
-                functionality_intent_id="INT-STRUCT-PAYMENTS",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-STRUCT-IMPL",
+                    files=["src/other_domain/payment_leak.py"],
+                    subject="feat: add payment leak function",
+                    functionality_intent_id="INT-STRUCT-PAYMENTS",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(structure_repo), plan)
         assert result["success"], f"save_commit_plan failed: {result}"
 
@@ -249,52 +251,39 @@ class TestStructureAlignmentBlock:
             "passed": False,
             "override_rationale": None,
         }
-        result = save_structure_validation(
-            session_id, diff_hash, str(structure_repo), validation
-        )
+        result = save_structure_validation(session_id, diff_hash, str(structure_repo), validation)
         assert result["success"], f"save_structure_validation failed: {result}"
 
         # Step 6: Create session record (required by hook)
         record = minimal_session_record(session_id, diff_hash)
-        result = save_session_record(
-            session_id, str(structure_repo), diff_hash, record
-        )
+        result = save_session_record(session_id, str(structure_repo), diff_hash, record)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Step 7: Run stop hook
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Step 8: Verify hook blocks with exit code 2
-        assert exit_code == 2, (
-            f"Expected exit code 2 (blocked), got {exit_code}.\n"
-            f"stderr: {stderr}"
-        )
+        assert exit_code == 2, f"Expected exit code 2 (blocked), got {exit_code}.\nstderr: {stderr}"
 
         # Step 9: Verify structure violation message is present
         assert "structure validation failed" in stderr.lower(), (
-            f"Expected 'structure validation failed' in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected 'structure validation failed' in stderr.\nstderr: {stderr}"
         )
 
         # Verify the violation report is included
         assert "code_home_boundary" in stderr.lower() or "boundary" in stderr.lower(), (
-            f"Expected boundary violation type in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected boundary violation type in stderr.\nstderr: {stderr}"
         )
 
         # Verify violating path is mentioned
         assert "other_domain" in stderr or "payment_leak" in stderr, (
-            f"Expected violating path in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected violating path in stderr.\nstderr: {stderr}"
         )
 
         # Step 10: Verify suggested fixes are included
         # The structure_renderer.py generates suggested fixes for code_home_boundary
         assert "suggested fix" in stderr.lower() or "move" in stderr.lower(), (
-            f"Expected suggested fixes in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected suggested fixes in stderr.\nstderr: {stderr}"
         )
 
     def test_structure_override_allows_proceed(
@@ -383,27 +372,20 @@ class TestStructureAlignmentBlock:
             "passed": False,
             "override_rationale": None,  # Hook reads override from commit_plan
         }
-        result = save_structure_validation(
-            session_id, diff_hash, str(structure_repo), validation
-        )
+        result = save_structure_validation(session_id, diff_hash, str(structure_repo), validation)
         assert result["success"], f"save_structure_validation failed: {result}"
 
         # Create session record
         record = minimal_session_record(session_id, diff_hash)
-        result = save_session_record(
-            session_id, str(structure_repo), diff_hash, record
-        )
+        result = save_session_record(session_id, str(structure_repo), diff_hash, record)
         assert result["success"], f"save_session_record failed: {result}"
 
         # Run stop hook - should succeed due to override rationale
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Should NOT block - override rationale allows proceeding
         assert exit_code == 0, (
-            f"Expected exit code 0 (allowed with override), got {exit_code}.\n"
-            f"stderr: {stderr}"
+            f"Expected exit code 0 (allowed with override), got {exit_code}.\nstderr: {stderr}"
         )
 
         # Verify commit was created
@@ -455,14 +437,16 @@ class TestStructureAlignmentBlock:
         assert result["success"], f"save_intentions failed: {result}"
 
         # Create commit plan
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-STRUCT-NEW",
-                files=["src/payments/new_payment.py"],
-                subject="feat: add new payment module",
-                functionality_intent_id="INT-STRUCT-PAY",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-STRUCT-NEW",
+                    files=["src/payments/new_payment.py"],
+                    subject="feat: add new payment module",
+                    functionality_intent_id="INT-STRUCT-PAY",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(structure_repo), plan)
         assert result["success"], f"save_commit_plan failed: {result}"
 
@@ -478,24 +462,17 @@ class TestStructureAlignmentBlock:
         # DO NOT create structure_validation artifact
 
         # Run stop hook
-        exit_code, _stdout, stderr = run_stop_hook(
-            structure_repo, session_id, project_root
-        )
+        exit_code, _stdout, stderr = run_stop_hook(structure_repo, session_id, project_root)
 
         # Should block due to missing structure_validation
-        assert exit_code == 2, (
-            f"Expected exit code 2 (blocked), got {exit_code}.\n"
-            f"stderr: {stderr}"
-        )
+        assert exit_code == 2, f"Expected exit code 2 (blocked), got {exit_code}.\nstderr: {stderr}"
 
         # Should mention missing structure validation
         assert "structure validation" in stderr.lower(), (
-            f"Expected 'structure validation' in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected 'structure validation' in stderr.\nstderr: {stderr}"
         )
 
         # Should mention structure-validator sub-agent
         assert "structure-validator" in stderr, (
-            f"Expected 'structure-validator' sub-agent in stderr.\n"
-            f"stderr: {stderr}"
+            f"Expected 'structure-validator' sub-agent in stderr.\nstderr: {stderr}"
         )

@@ -95,9 +95,7 @@ def get_all_trailers(repo_path: Path, ref: str = "HEAD") -> dict[str, str]:
 class TestCommitTrailers:
     """Test commit trailer generation."""
 
-    def test_intent_id_trailer_present(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_intent_id_trailer_present(self, basic_repo: Path, project_root: Path) -> None:
         """
         Every commit created by the stop hook should have Intent-Id trailer.
         """
@@ -118,13 +116,15 @@ class TestCommitTrailers:
         assert result["success"]
 
         # Save commit plan
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-T001-A",
-                files=["src/feature_x/trailer_test.py"],
-                subject="feat: add trailer test module",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-T001-A",
+                    files=["src/feature_x/trailer_test.py"],
+                    subject="feat: add trailer test module",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -140,9 +140,7 @@ class TestCommitTrailers:
         message = get_commit_message(basic_repo)
         assert "Intent-Id: INT-T001-A" in message
 
-    def test_intent_path_trailer_when_provided(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_intent_path_trailer_when_provided(self, basic_repo: Path, project_root: Path) -> None:
         """
         Intent-Path trailer should be present when the plan provides it.
         """
@@ -173,14 +171,16 @@ class TestCommitTrailers:
         assert result["success"]
 
         # Save commit plan with intent_path
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-T002-IMPL",
-                files=["src/feature_x/path_test.py"],
-                subject="feat: add path test module",
-                intent_path="INT-T002/INT-T002-FUNC/INT-T002-IMPL",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-T002-IMPL",
+                    files=["src/feature_x/path_test.py"],
+                    subject="feat: add path test module",
+                    intent_path="INT-T002/INT-T002-FUNC/INT-T002-IMPL",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -196,9 +196,7 @@ class TestCommitTrailers:
         intent_id = get_trailer_value(basic_repo, "Intent-Id")
         assert intent_id == "INT-T002-IMPL"
 
-    def test_functionality_intent_id_trailer(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_functionality_intent_id_trailer(self, basic_repo: Path, project_root: Path) -> None:
         """
         Functionality-Intent-Id trailer should be present when provided.
         """
@@ -229,14 +227,16 @@ class TestCommitTrailers:
         assert result["success"]
 
         # Save commit plan with functionality_intent_id
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-T003-IMPL",
-                files=["src/feature_x/func_test.py"],
-                subject="feat: add functionality test module",
-                functionality_intent_id="INT-T003-FUNC",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-T003-IMPL",
+                    files=["src/feature_x/func_test.py"],
+                    subject="feat: add functionality test module",
+                    functionality_intent_id="INT-T003-FUNC",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -252,9 +252,7 @@ class TestCommitTrailers:
         intent_id = get_trailer_value(basic_repo, "Intent-Id")
         assert intent_id == "INT-T003-IMPL"
 
-    def test_trace_via_git_log(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_trace_via_git_log(self, basic_repo: Path, project_root: Path) -> None:
         """
         Trailers should be extractable via git log --format=%(trailers:...).
         This validates the standard Git trailer format is used.
@@ -276,16 +274,18 @@ class TestCommitTrailers:
         assert result["success"]
 
         # Save commit plan with all optional fields
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-T004-A",
-                files=["src/feature_x/trace_test.py"],
-                subject="feat: add trace test module",
-                intent_path="INT-T004/INT-T004-A",
-                functionality_intent_id="INT-T004",
-                intent_confidence=0.95,
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-T004-A",
+                    files=["src/feature_x/trace_test.py"],
+                    subject="feat: add trace test module",
+                    intent_path="INT-T004/INT-T004-A",
+                    functionality_intent_id="INT-T004",
+                    intent_confidence=0.95,
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -309,9 +309,7 @@ class TestCommitTrailers:
         assert "Intent-Confidence" in trailers
         assert trailers["Intent-Confidence"] == "0.95"
 
-    def test_multiple_commits_each_has_trailers(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_multiple_commits_each_has_trailers(self, basic_repo: Path, project_root: Path) -> None:
         """
         When multiple commits are created, each should have its own trailers.
         """
@@ -337,18 +335,20 @@ class TestCommitTrailers:
         assert result["success"]
 
         # Save plan with two commits
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-T005-A",
-                files=["src/feature_x/multi_a.py"],
-                subject="feat: add multi_a module",
-            ),
-            full_commit_entry(
-                intent_id="INT-T005-B",
-                files=["src/feature_x/multi_b.py"],
-                subject="feat: add multi_b module",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-T005-A",
+                    files=["src/feature_x/multi_a.py"],
+                    subject="feat: add multi_a module",
+                ),
+                full_commit_entry(
+                    intent_id="INT-T005-B",
+                    files=["src/feature_x/multi_b.py"],
+                    subject="feat: add multi_b module",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -369,9 +369,7 @@ class TestCommitTrailers:
 class TestTrailerEdgeCases:
     """Test edge cases in trailer generation."""
 
-    def test_commit_body_preserved(
-        self, basic_repo: Path, project_root: Path
-    ) -> None:
+    def test_commit_body_preserved(self, basic_repo: Path, project_root: Path) -> None:
         """
         When commit plan includes a body, it should appear before trailers.
         """
@@ -392,14 +390,16 @@ class TestTrailerEdgeCases:
         assert result["success"]
 
         # Save commit plan with body
-        plan = multi_commit_plan([
-            full_commit_entry(
-                intent_id="INT-BODY-A",
-                files=["src/feature_x/body_test.py"],
-                subject="feat: add body test module",
-                body="This is a longer description.\n\nWith multiple paragraphs.",
-            ),
-        ])
+        plan = multi_commit_plan(
+            [
+                full_commit_entry(
+                    intent_id="INT-BODY-A",
+                    files=["src/feature_x/body_test.py"],
+                    subject="feat: add body test module",
+                    body="This is a longer description.\n\nWith multiple paragraphs.",
+                ),
+            ]
+        )
         result = save_commit_plan(session_id, diff_hash, str(basic_repo), plan)
         assert result["success"]
 
@@ -546,7 +546,8 @@ class TestCommitTrailersClaude:
             check=True,
         )
         uncommitted = [
-            line for line in status_result.stdout.strip().split("\n")
+            line
+            for line in status_result.stdout.strip().split("\n")
             if line and not any(p in line for p in [".intent_audit", ".claude", ".mcp.json"])
         ]
         assert len(uncommitted) == 0, f"Expected no uncommitted files, got: {uncommitted}"

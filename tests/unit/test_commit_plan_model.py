@@ -1,6 +1,5 @@
 """Unit tests for CommitPlan and CommitEntry models."""
 
-
 from intention_audit.models.commit_plan import CommitEntry, CommitPlan
 
 

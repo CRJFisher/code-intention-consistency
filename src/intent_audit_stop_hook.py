@@ -246,7 +246,7 @@ def main() -> None:
                     "Initialize Git first (example):",
                     "- git init",
                     "- git add .",
-                    "- git commit -m \"chore: initial commit\"",
+                    '- git commit -m "chore: initial commit"',
                     "",
                     "Then rerun the agent; this hook will enforce intention-tagged commits.",
                 ]
@@ -364,7 +364,7 @@ def main() -> None:
                 [
                     "Intention Audit Stop Hook blocked: commit plan is not marked ready.",
                     "",
-                    f"Set `\"ready\": true` in `{PLAN_FILE_REL}` once the intention→file mapping is complete and reviewed.",
+                    f'Set `"ready": true` in `{PLAN_FILE_REL}` once the intention→file mapping is complete and reviewed.',
                 ]
             )
         )
@@ -416,7 +416,9 @@ def main() -> None:
             planned_files.append(rel_path)
 
     # Validate intent ids exist in intentions.yaml
-    missing_intents = [iid for iid in sorted(set(intent_ids)) if not _intent_id_exists(intentions_text, iid)]
+    missing_intents = [
+        iid for iid in sorted(set(intent_ids)) if not _intent_id_exists(intentions_text, iid)
+    ]
     if missing_intents:
         _block(
             "\n".join(
@@ -460,7 +462,9 @@ def main() -> None:
         if unassigned:
             lines.extend(["Unassigned changed file(s):", _format_bullets(unassigned), ""])
         if extra:
-            lines.extend(["Planned file(s) that are not currently changed:", _format_bullets(extra), ""])
+            lines.extend(
+                ["Planned file(s) that are not currently changed:", _format_bullets(extra), ""]
+            )
         lines.extend(
             [
                 f"Fix `{PLAN_FILE_REL}` (or regenerate it via `{mcp_tool_name}`) so commits[].files exactly match the changed files above.",
@@ -549,4 +553,3 @@ if __name__ == "__main__":
                 ]
             )
         )
-

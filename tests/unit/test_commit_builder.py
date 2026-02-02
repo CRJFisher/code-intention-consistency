@@ -1,6 +1,5 @@
 """Unit tests for commit message builder."""
 
-
 from intention_audit.hooks.commit_builder import (
     build_commit_message,
     extract_intent_id,

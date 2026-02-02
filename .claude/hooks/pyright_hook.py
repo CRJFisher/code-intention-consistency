@@ -5,6 +5,7 @@ Runs after Edit or Write tool on Python files:
 - ruff format (check only)
 - ruff check (lint check, no fix)
 - pyright (type check)
+- mypy (type check)
 
 Exit code 2 blocks further execution on errors.
 """
@@ -76,6 +77,20 @@ def main() -> int:
     )
     if result.returncode != 0:
         print(f"[pyright] {file_path}", file=sys.stderr)
+        if result.stdout:
+            print(result.stdout, file=sys.stderr)
+        if result.stderr:
+            print(result.stderr, file=sys.stderr)
+        has_errors = True
+
+    # Run mypy
+    result = subprocess.run(
+        ["uv", "run", "mypy", file_path],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"[mypy] {file_path}", file=sys.stderr)
         if result.stdout:
             print(result.stdout, file=sys.stderr)
         if result.stderr:
