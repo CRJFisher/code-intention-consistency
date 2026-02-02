@@ -1,37 +1,108 @@
 # code-intention-consistency Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-01-30
+Auto-generated from all feature plans. Last updated: 2026-02-01
 
 ## Active Technologies
 
-- Python 3.12 + Claude Code hooks + MCP server tooling (planner)
+- Python 3.12 + Claude Code hooks + MCP server tooling
 - Dependency management: `uv`
 - Testing: pytest with sample Git repositories
 - Linting: ruff
+- Type checking: pyright
 
 ## Project Structure
 
 ```text
-src/                           # Implementation code (to be created)
-tests/                         # Test suite (to be created)
-  fixtures/sample-repos/       # Nested Git repositories for testing hooks
-.claude/hooks/                 # Stop hook implementation
-.specify/                      # Spec-kit infrastructure
+src/intention_audit/           # Intention Audit product code
+  hooks/                       # Stop hook (install to target repos)
+    stop_hook.py               # Main enforcement hook
+  agents/                      # Sub-agent definitions (install to target repos)
+    intention-mapper.md
+    commit-planner.md
+    evidence-checker.md
+    structure-validator.md
+    session-recorder.md
+  models/                      # Data models
+  evidence/                    # Evidence test runner
+  structure/                   # Code home boundary checker
+  reporting/                   # Failure context rendering
+  docs/                        # Docs linkage validation
+  session/                     # Session recording
+
+mcp_servers/intention_audit/   # MCP tools (called by sub-agents)
+  tools/
+    save_intentions.py
+    save_commit_plan.py
+    run_evidence_tests.py
+    save_structure_validation.py
+    save_session_record.py
+
+tests/
+  unit/                        # Unit tests (192 tests)
+  e2e/                         # E2E tests (marked @pytest.mark.e2e)
+  fixtures/sample_repos/       # Sample repos for testing
+    basic_repo/                # Basic test repo
+    demo_repo/                 # Demo with evidence tests
+    structure_repo/            # Repo with code_home boundaries
+
+specs/                         # Feature specifications
+.claude/hooks/                 # Project-local hooks for THIS repo
 ```
 
 ## Commands
 
-uv sync                # Install dependencies
-uv run pytest          # Run tests
-uv run ruff check .    # Lint code
+```bash
+uv sync                        # Install dependencies
+uv run pytest                  # Run unit tests only (E2E excluded by default)
+uv run pytest -m e2e           # Run E2E tests
+uv run pytest -v               # Verbose test output
+# Linting (ruff) and type checking (pyright) run automatically via Claude Code hooks
+```
 
 ## Code Style
 
 Python 3.12: Follow PEP 8, type hints required for public APIs, docstrings required (PEP 257)
 
+## Product vs Tooling Distinction
+
+**Product** (to install in target repos):
+- `src/intention_audit/hooks/stop_hook.py` → `.claude/hooks/`
+- `src/intention_audit/agents/*.md` → `.claude/agents/`
+- MCP server tools registered via MCP configuration
+
+**Tooling** (for developing THIS repo):
+- `.claude/hooks/` - Project-local hooks
+- `tests/` - Test infrastructure
+
+## Hook Architecture
+
+```
+User makes changes → Stop hook runs →
+  1. Check intentions.yaml → blocks if missing → intention-mapper sub-agent
+  2. Check commit_plan.yaml → blocks if missing → commit-planner sub-agent
+  3. Check evidence_results.json → blocks if missing/failed → evidence-checker sub-agent
+  4. Check structure_validation.json → blocks if missing/violated → structure-validator sub-agent
+  5. Check session_record.json → blocks if missing → session-recorder sub-agent
+  6. Execute commits with Intent-Id trailers
+```
+
+## Configuration
+
+The hook reads `.intent_audit/config.json` for optional settings:
+```json
+{
+  "evidence_checking": true,
+  "structure_validation": true,
+  "docs_validation": "warn"
+}
+```
+
 ## Recent Changes
 
-- main: Adopted development constitution v1.0.0, established uv dependency management, defined test infrastructure requirements
+- 001-intent-audit-trail: Full implementation of intention audit trail MVP
+  - Stop hook with 5 validation phases
+  - Sub-agents for intention mapping, commit planning, evidence checking, structure validation, session recording
+  - E2E test coverage for all scenarios
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
