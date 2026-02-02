@@ -116,7 +116,7 @@ def validate_docs_links(
                 DocsViolation(
                     intent_id=intention.id,
                     intent_title=intention.title,
-                    intent_kind=kind_value,
+                    intent_kind=str(kind_value),
                     reason="missing_docs",
                     suggested_fix=(
                         f"Add 'supporting_docs' to intention {intention.id} "

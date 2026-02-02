@@ -24,18 +24,29 @@ import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, NoReturn
 
-HOOK_VERSION = "0.4.0"
+if TYPE_CHECKING:
+    from intention_audit.models.evidence_results import EvidenceResults
+    from intention_audit.models.intention import Intention
+    from intention_audit.models.structure_validation import StructureValidation
+
+HOOK_VERSION = "0.5.0"
 
 # Session-keyed artifact paths (relative to project_dir / .intent_audit / <session_id>)
 INTENTIONS_FILE_NAME = "intentions.yaml"
 PLAN_FILE_NAME = "commit_plan.yaml"
+EVIDENCE_RESULTS_FILE_NAME = "evidence_results.json"
+STRUCTURE_VALIDATION_FILE_NAME = "structure_validation.json"
+SESSION_RECORD_FILE_NAME = "session_record.json"
 CONFIG_FILE_REL = ".intent_audit/config.json"
 
 # Sub-agent names for blocking messages
 INTENTION_MAPPER_AGENT = "intention-mapper"
 COMMIT_PLANNER_AGENT = "commit-planner"
+EVIDENCE_CHECKER_AGENT = "evidence-checker"
+STRUCTURE_VALIDATOR_AGENT = "structure-validator"
+SESSION_RECORDER_AGENT = "session-recorder"
 
 INTERNAL_PATH_PREFIXES = (
     ".intent_audit/",
@@ -211,7 +222,7 @@ def _get_staged_paths(project_dir: Path) -> list[str]:
     return [p for p in out.split("\0") if p]
 
 
-def _block(message: str) -> None:
+def _block(message: str) -> "NoReturn":
     """Print block message and exit with code 2."""
     _eprint(message.rstrip() + "\n")
     sys.exit(2)
@@ -284,6 +295,54 @@ def _build_commit_message(entry: dict[str, Any]) -> str:
     return "\n".join(parts).rstrip() + "\n"
 
 
+def _load_evidence_results(path: Path) -> EvidenceResults:
+    """Load evidence results from JSON file."""
+    # Import here to avoid circular imports and keep hook lightweight
+    from intention_audit.models.evidence_results import EvidenceResults as ER
+    return ER.load(path)
+
+
+def _load_structure_validation(path: Path) -> StructureValidation:
+    """Load structure validation from JSON file."""
+    from intention_audit.models.structure_validation import StructureValidation as SV
+    return SV.load(path)
+
+
+def _load_intentions(path: Path) -> Intention:
+    """Load intentions from YAML file."""
+    from intention_audit.models.loaders import load_intentions
+    return load_intentions(path)
+
+
+def _render_evidence_failures(
+    root: Intention,
+    evidence_results: EvidenceResults,
+) -> str:
+    """Render evidence test failures with intention context."""
+    from intention_audit.reporting.failure_context import build_failure_context
+    from intention_audit.reporting.renderer import render_failure_context
+
+    contexts = build_failure_context(root, evidence_results)
+    return render_failure_context(contexts)
+
+
+def _render_structure_violations(validation: StructureValidation) -> str:
+    """Render structure validation violations."""
+    from intention_audit.reporting.structure_renderer import render_structure_violations
+    return render_structure_violations(validation)
+
+
+def _load_config(project_dir: Path) -> dict[str, Any]:
+    """Load hook configuration from .intent_audit/config.json."""
+    config_path = project_dir / CONFIG_FILE_REL
+    if not config_path.exists():
+        return {}
+    try:
+        return json.loads(config_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
 def main() -> None:
     """Main entry point for the stop hook."""
     hook_input = _read_hook_input()
@@ -352,14 +411,27 @@ def main() -> None:
                     "Changed files that must be mapped to intentions:",
                     _format_bullets(relevant_changed_paths),
                     "",
-                    "Next step:",
-                    f"Run '{INTENTION_MAPPER_AGENT}' sub-agent with:",
-                    f"  session_id={session_id}",
-                    f"  diff_hash={diff_hash}",
-                    f"  cwd={project_dir}",
+                    "ACTION REQUIRED - Context Compilation:",
+                    "Before spawning the sub-agent, compile the following context:",
                     "",
-                    "The sub-agent will analyze the conversation, identify user intentions,",
-                    "and call the save_intentions MCP tool to persist the intention tree.",
+                    "1. USER INTENTIONS - All explicit user requests/goals from this conversation:",
+                    "   - Primary goal(s) the user stated",
+                    "   - Any secondary requests or constraints mentioned",
+                    "   - Clarifications or refinements provided during the session",
+                    "",
+                    "2. IMPLEMENTATION CONTEXT - Decisions and discoveries you made:",
+                    "   - Design decisions not explicitly requested by user",
+                    "   - Discoveries during implementation (e.g., refactoring needs)",
+                    "   - Augmentations you added (tests, docs, error handling)",
+                    "",
+                    "3. SESSION METADATA (provided below):",
+                    f"   session_id: {session_id}",
+                    f"   diff_hash: {diff_hash}",
+                    f"   cwd: {project_dir}",
+                    "",
+                    "NEXT STEP:",
+                    f"Spawn '{INTENTION_MAPPER_AGENT}' sub-agent with the compiled context above.",
+                    "The sub-agent will analyze diffs and link changes to intentions.",
                 ]
             )
         )
@@ -379,15 +451,18 @@ def main() -> None:
                     "Changed files that must be mapped to intentions:",
                     _format_bullets(relevant_changed_paths),
                     "",
-                    "Next step:",
-                    f"Run '{COMMIT_PLANNER_AGENT}' sub-agent with:",
-                    f"  session_id={session_id}",
-                    f"  diff_hash={diff_hash}",
-                    f"  cwd={project_dir}",
+                    "ACTION REQUIRED:",
+                    "The intentions artifact exists. Now spawn the commit-planner sub-agent.",
                     "",
-                    "The sub-agent will analyze the diff, read intentions.yaml,",
-                    "map each change to an intention, and call the save_commit_plan",
-                    "MCP tool to persist the commit plan.",
+                    "SESSION METADATA:",
+                    f"  session_id: {session_id}",
+                    f"  diff_hash: {diff_hash}",
+                    f"  cwd: {project_dir}",
+                    "",
+                    "NEXT STEP:",
+                    f"Spawn '{COMMIT_PLANNER_AGENT}' sub-agent with the metadata above.",
+                    "The sub-agent will read intentions.yaml, analyze the diff,",
+                    "map each change to an intention, and persist the commit plan.",
                 ]
             )
         )
@@ -541,6 +616,229 @@ def main() -> None:
             ]
         )
         _block("\n".join(lines))
+
+    # Load configuration for optional gates
+    config = _load_config(project_dir)
+    evidence_enabled = config.get("evidence_checking", True)
+    structure_enabled = config.get("structure_validation", True)
+    docs_validation_mode = config.get("docs_validation", "warn")  # "warn", "block", or "disabled"
+
+    # Evidence checking artifact paths
+    evidence_results_path = artifact_dir / EVIDENCE_RESULTS_FILE_NAME
+    structure_validation_path = artifact_dir / STRUCTURE_VALIDATION_FILE_NAME
+    session_record_path = artifact_dir / SESSION_RECORD_FILE_NAME
+
+    # Phase: Evidence Checking (T046)
+    if evidence_enabled:
+        if not evidence_results_path.exists():
+            _block(
+                "\n".join(
+                    [
+                        "Intention Audit Stop Hook blocked: missing evidence results artifact.",
+                        "",
+                        f"Session ID: {session_id}",
+                        f"Diff hash: {diff_hash}",
+                        f"Expected artifact: {evidence_results_path.relative_to(project_dir)}",
+                        "",
+                        "ACTION REQUIRED:",
+                        "Run the evidence-checker sub-agent to verify intention evidence tests.",
+                        "",
+                        "SESSION METADATA:",
+                        f"  session_id: {session_id}",
+                        f"  diff_hash: {diff_hash}",
+                        f"  cwd: {project_dir}",
+                        "",
+                        "NEXT STEP:",
+                        f"Spawn '{EVIDENCE_CHECKER_AGENT}' sub-agent with the metadata above.",
+                        "The sub-agent will read intentions.yaml and commit_plan.yaml,",
+                        "identify evidence tests for affected intentions, and run them.",
+                    ]
+                )
+            )
+
+        # Load and check evidence results
+        try:
+            evidence_results = _load_evidence_results(evidence_results_path)
+        except Exception as e:
+            _block(
+                "\n".join(
+                    [
+                        "Intention Audit Stop Hook blocked: cannot parse evidence results file.",
+                        "",
+                        str(e),
+                        "",
+                        f"Re-run the '{EVIDENCE_CHECKER_AGENT}' sub-agent.",
+                    ]
+                )
+            )
+
+        if not evidence_results.all_passed:
+            # Load intentions to build failure context
+            try:
+                root_intention = _load_intentions(intentions_path)
+            except Exception:
+                root_intention = None
+
+            if root_intention:
+                failure_report = _render_evidence_failures(root_intention, evidence_results)
+            else:
+                # Fallback: simple failure list without intention context
+                failure_report = "Evidence test failures:\n" + "\n".join(
+                    f"- {r.selector}" for r in evidence_results.results if not r.passed
+                )
+
+            _block(
+                "\n".join(
+                    [
+                        "Intention Audit Stop Hook blocked: evidence tests failed.",
+                        "",
+                        failure_report,
+                        "",
+                        "ACTION REQUIRED:",
+                        "Fix the failing evidence tests or update the intentions.",
+                        "",
+                        "Options:",
+                        "1. Fix the code to make evidence tests pass",
+                        "2. Update evidence_tests in intentions if tests are obsolete",
+                        "3. Re-run evidence-checker after fixes",
+                    ]
+                )
+            )
+
+    # Phase: Structure Validation (T057)
+    if structure_enabled:
+        if not structure_validation_path.exists():
+            _block(
+                "\n".join(
+                    [
+                        "Intention Audit Stop Hook blocked: missing structure validation artifact.",
+                        "",
+                        f"Session ID: {session_id}",
+                        f"Diff hash: {diff_hash}",
+                        f"Expected artifact: {structure_validation_path.relative_to(project_dir)}",
+                        "",
+                        "ACTION REQUIRED:",
+                        "Run the structure-validator sub-agent to check code_home boundaries.",
+                        "",
+                        "SESSION METADATA:",
+                        f"  session_id: {session_id}",
+                        f"  diff_hash: {diff_hash}",
+                        f"  cwd: {project_dir}",
+                        "",
+                        "NEXT STEP:",
+                        f"Spawn '{STRUCTURE_VALIDATOR_AGENT}' sub-agent with the metadata above.",
+                        "The sub-agent will verify all file changes stay within declared code_home prefixes.",
+                    ]
+                )
+            )
+
+        # Load and check structure validation
+        try:
+            structure_validation = _load_structure_validation(structure_validation_path)
+        except Exception as e:
+            _block(
+                "\n".join(
+                    [
+                        "Intention Audit Stop Hook blocked: cannot parse structure validation file.",
+                        "",
+                        str(e),
+                        "",
+                        f"Re-run the '{STRUCTURE_VALIDATOR_AGENT}' sub-agent.",
+                    ]
+                )
+            )
+
+        # Check for override rationale in commit plan
+        override_rationale = plan.get("structure_override_rationale")
+        if override_rationale:
+            structure_validation.override_rationale = str(override_rationale)
+
+        if not structure_validation.passed and not structure_validation.override_rationale:
+            violation_report = _render_structure_violations(structure_validation)
+
+            _block(
+                "\n".join(
+                    [
+                        "Intention Audit Stop Hook blocked: structure validation failed.",
+                        "",
+                        violation_report,
+                        "",
+                        "ACTION REQUIRED:",
+                        "Fix the structure violations or provide override rationale.",
+                        "",
+                        "Options:",
+                        "1. Move files to within declared code_home boundaries",
+                        "2. Update code_home in functionality intentions",
+                        "3. Add 'structure_override_rationale' to commit_plan.yaml",
+                    ]
+                )
+            )
+
+    # Phase: Session Recording (T065) - Record before commits
+    if not session_record_path.exists():
+        _block(
+            "\n".join(
+                [
+                    "Intention Audit Stop Hook blocked: missing session record artifact.",
+                    "",
+                    f"Session ID: {session_id}",
+                    f"Diff hash: {diff_hash}",
+                    f"Expected artifact: {session_record_path.relative_to(project_dir)}",
+                    "",
+                    "ACTION REQUIRED:",
+                    "Run the session-recorder sub-agent to create the audit record.",
+                    "",
+                    "SESSION METADATA:",
+                    f"  session_id: {session_id}",
+                    f"  diff_hash: {diff_hash}",
+                    f"  cwd: {project_dir}",
+                    "",
+                    "NEXT STEP:",
+                    f"Spawn '{SESSION_RECORDER_AGENT}' sub-agent with the metadata above.",
+                    "The sub-agent will create a normalized audit record for traceability.",
+                ]
+            )
+        )
+
+    # Phase: Docs Validation (T067) - Optional, warn-only by default
+    if docs_validation_mode != "disabled":
+        try:
+            from intention_audit.docs.validator import (
+                format_docs_violations,
+                validate_docs_links,
+            )
+            from intention_audit.models.loaders import load_commit_plan
+
+            root_intention = _load_intentions(intentions_path)
+            commit_plan = load_commit_plan(plan_path)
+            docs_violations = validate_docs_links(root_intention, commit_plan)
+
+            if docs_violations:
+                docs_report = format_docs_violations(
+                    docs_violations,
+                    warn_only=(docs_validation_mode == "warn"),
+                )
+                if docs_validation_mode == "block":
+                    _block(
+                        "\n".join(
+                            [
+                                "Intention Audit Stop Hook blocked: documentation validation failed.",
+                                "",
+                                docs_report,
+                                "",
+                                "ACTION REQUIRED:",
+                                "Add supporting_docs or rationale to behavior-affecting intentions.",
+                            ]
+                        )
+                    )
+                else:
+                    # Warn only - print to stderr but don't block
+                    _eprint("")
+                    _eprint(docs_report)
+                    _eprint("")
+        except Exception as e:
+            # Docs validation is optional, don't fail on errors
+            _eprint(f"Warning: Could not validate docs linkage: {e}")
 
     # Perform commits.
     #
