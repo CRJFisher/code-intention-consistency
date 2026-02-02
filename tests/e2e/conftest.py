@@ -185,6 +185,50 @@ def demo_repo(sample_repos_path: Path) -> Generator[Path, None, None]:
 
 
 @pytest.fixture
+def structure_repo(sample_repos_path: Path) -> Generator[Path, None, None]:
+    """
+    Create a temporary copy of structure_repo with git initialized.
+
+    This repo contains code_home boundaries in intentions.yaml:
+    - src/payments/ is the code_home for Core Payment Functionality
+    - src/other_domain/ exists but is NOT within the payments code_home
+
+    Yields the path to the temporary repo, then cleans up.
+    """
+    source = sample_repos_path / "structure_repo"
+    if not source.exists():
+        pytest.skip("structure_repo fixture not populated yet")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_path = Path(tmpdir) / "structure_repo"
+        shutil.copytree(source, repo_path, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+
+        # Initialize git
+        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Initial commit"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+        yield repo_path
+
+
+@pytest.fixture
 def install_product_artifacts(product_src_path: Path) -> callable:
     """
     Factory fixture that installs PRODUCT artifacts into a sample repo.
