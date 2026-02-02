@@ -17,14 +17,30 @@ import os
 import shutil
 import subprocess
 import tempfile
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import pytest
 
 from tests.e2e.output_capture import copy_artifacts, create_output_dir, save_component
 from tests.e2e.setup_intent_audit import cleanup_intent_audit_dir, setup_intent_audit_dir
+
+# Type aliases for fixture return types
+RepoInstaller = Callable[[Path], None]
+RepoCleanup = Callable[[Path], None]
+
+
+class ClaudeSessionRunner(Protocol):
+    """Protocol for the claude_session_runner fixture return type."""
+
+    def __call__(
+        self,
+        repo_path: Path,
+        prompt: str,
+        timeout_seconds: int = 180,
+        model: str = "haiku",
+    ) -> tuple[int, str, str]: ...
 
 
 def compute_diff_hash(repo_path: Path) -> str:
@@ -229,7 +245,7 @@ def structure_repo(sample_repos_path: Path) -> Generator[Path, None, None]:
 
 
 @pytest.fixture
-def install_product_artifacts(product_src_path: Path) -> callable:
+def install_product_artifacts(product_src_path: Path) -> RepoInstaller:
     """
     Factory fixture that installs PRODUCT artifacts into a sample repo.
 
@@ -264,7 +280,7 @@ def install_product_artifacts(product_src_path: Path) -> callable:
 
 
 @pytest.fixture
-def cleanup_sample_repo() -> callable:
+def cleanup_sample_repo() -> RepoCleanup:
     """
     Factory fixture that cleans up runtime state from a sample repo.
 
@@ -371,7 +387,7 @@ def _extract_session_id(stream_output: str) -> str | None:
         try:
             event = json.loads(line)
             # session_id appears in init, assistant, and result events
-            session_id = event.get("session_id")
+            session_id: str | None = event.get("session_id")
             if session_id:
                 return session_id
         except json.JSONDecodeError:
@@ -728,7 +744,9 @@ def run_claude_session(
 
 
 @pytest.fixture
-def claude_session_runner(project_root: Path, request) -> callable:
+def claude_session_runner(
+    project_root: Path, request: pytest.FixtureRequest
+) -> ClaudeSessionRunner:
     """
     Factory fixture that returns a function to run claude -p sessions.
 

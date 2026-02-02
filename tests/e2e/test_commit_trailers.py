@@ -26,17 +26,13 @@ Test cases (true E2E with claude -p):
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-# Add project root to path for MCP tool imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from mcp_servers.intention_audit.tools.save_commit_plan import save_commit_plan
 from mcp_servers.intention_audit.tools.save_intentions import save_intentions
-from tests.e2e.conftest import compute_diff_hash, run_stop_hook
+from tests.e2e.conftest import ClaudeSessionRunner, compute_diff_hash, run_stop_hook
 from tests.e2e.fixtures import (
     full_commit_entry,
     intention_tree,
@@ -473,7 +469,7 @@ class TestCommitTrailersClaude:
         self,
         basic_repo: Path,
         project_root: Path,
-        claude_session_runner: callable,
+        claude_session_runner: ClaudeSessionRunner,
     ) -> None:
         """
         Verify Intent-Id trailer is present in commits created by real flow.
@@ -506,7 +502,7 @@ class TestCommitTrailersClaude:
         self,
         basic_repo: Path,
         project_root: Path,
-        claude_session_runner: callable,
+        claude_session_runner: ClaudeSessionRunner,
     ) -> None:
         """
         Verify that when multiple files are requested, they are committed.
@@ -567,7 +563,7 @@ class TestCommitTrailersClaude:
         self,
         basic_repo: Path,
         project_root: Path,
-        claude_session_runner: callable,
+        claude_session_runner: ClaudeSessionRunner,
     ) -> None:
         """
         Verify that trailers from real flow are extractable via git log --format.

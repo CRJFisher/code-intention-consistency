@@ -18,13 +18,9 @@ Test scenario:
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
-
-# Add project root to path for MCP tool imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mcp_servers.intention_audit.tools.run_evidence_tests import run_evidence_tests
 from mcp_servers.intention_audit.tools.save_commit_plan import save_commit_plan

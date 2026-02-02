@@ -26,17 +26,13 @@ Test cases (true E2E with claude -p):
 from __future__ import annotations
 
 import subprocess
-import sys
 from pathlib import Path
 
 import pytest
 
-# Add project root to path for MCP tool imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
 from mcp_servers.intention_audit.tools.save_commit_plan import save_commit_plan
 from mcp_servers.intention_audit.tools.save_intentions import save_intentions
-from tests.e2e.conftest import compute_diff_hash, run_stop_hook
+from tests.e2e.conftest import ClaudeSessionRunner, compute_diff_hash, run_stop_hook
 from tests.e2e.fixtures import (
     full_commit_entry,
     intention_tree,
@@ -358,7 +354,7 @@ class TestStopHookBasicClaude:
         self,
         basic_repo: Path,
         project_root: Path,
-        claude_session_runner: callable,
+        claude_session_runner: ClaudeSessionRunner,
     ) -> None:
         """
         Test complete flow: create file → stop blocked → sub-agents run → commit created.
@@ -437,7 +433,7 @@ class TestStopHookBasicClaude:
         self,
         basic_repo: Path,
         project_root: Path,
-        claude_session_runner: callable,
+        claude_session_runner: ClaudeSessionRunner,
     ) -> None:
         """
         Test flow with multiple files: should create intention-scoped commits.
@@ -493,7 +489,7 @@ class TestStopHookBasicClaude:
         self,
         basic_repo: Path,
         project_root: Path,
-        claude_session_runner: callable,
+        claude_session_runner: ClaudeSessionRunner,
     ) -> None:
         """
         When there are no changes, stop should be allowed immediately.

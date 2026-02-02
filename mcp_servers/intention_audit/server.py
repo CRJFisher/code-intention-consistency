@@ -15,31 +15,25 @@ schema and persist the data passed by sub-agents.
 from __future__ import annotations
 
 import json
-import sys
-from pathlib import Path
 from typing import Any
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
 from mcp.types import TextContent, Tool
 
-# Add project root to path for imports
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
-
-from mcp_servers.intention_audit.tools.run_evidence_tests import (  # noqa: E402
+from mcp_servers.intention_audit.tools.run_evidence_tests import (
     run_evidence_tests as _run_evidence_tests,
 )
-from mcp_servers.intention_audit.tools.save_commit_plan import (  # noqa: E402
+from mcp_servers.intention_audit.tools.save_commit_plan import (
     save_commit_plan as _save_commit_plan,
 )
-from mcp_servers.intention_audit.tools.save_intentions import (  # noqa: E402
+from mcp_servers.intention_audit.tools.save_intentions import (
     save_intentions as _save_intentions,
 )
-from mcp_servers.intention_audit.tools.save_session_record import (  # noqa: E402
+from mcp_servers.intention_audit.tools.save_session_record import (
     save_session_record as _save_session_record,
 )
-from mcp_servers.intention_audit.tools.save_structure_validation import (  # noqa: E402
+from mcp_servers.intention_audit.tools.save_structure_validation import (
     save_structure_validation as _save_structure_validation,
 )
 

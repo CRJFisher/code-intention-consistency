@@ -21,14 +21,10 @@ from __future__ import annotations
 
 import json
 import subprocess
-import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
-
-# Add project root to path for MCP tool imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mcp_servers.intention_audit.tools.run_evidence_tests import run_evidence_tests
 from mcp_servers.intention_audit.tools.save_commit_plan import save_commit_plan
@@ -510,10 +506,10 @@ class TestEvidenceRepairScenario:
         assert artifact_dir_b.exists(), f"Session B artifacts should exist at {artifact_dir_b}"
 
         # Verify they contain different intentions
-        intentions_a = (artifact_dir_a / "intentions.yaml").read_text()
-        intentions_b = (artifact_dir_b / "intentions.yaml").read_text()
+        intentions_a_yaml = (artifact_dir_a / "intentions.yaml").read_text()
+        intentions_b_yaml = (artifact_dir_b / "intentions.yaml").read_text()
 
-        assert "INT-SESSA-001" in intentions_a
-        assert "INT-SESSB-001" in intentions_b
-        assert "INT-SESSA-001" not in intentions_b
-        assert "INT-SESSB-001" not in intentions_a
+        assert "INT-SESSA-001" in intentions_a_yaml
+        assert "INT-SESSB-001" in intentions_b_yaml
+        assert "INT-SESSA-001" not in intentions_b_yaml
+        assert "INT-SESSB-001" not in intentions_a_yaml

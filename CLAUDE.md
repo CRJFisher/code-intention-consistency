@@ -63,6 +63,16 @@ uv run pytest -v               # Verbose test output
 
 Python 3.12: Follow PEP 8, type hints required for public APIs, docstrings required (PEP 257)
 
+## Import Guidelines
+
+This project uses `uv` with editable installs. All packages are importable directly:
+- `from intention_audit.models.X import Y`
+- `from mcp_servers.intention_audit.tools.X import Y`
+
+**Never use sys.path manipulation.** If imports don't work, run `uv sync` to install packages.
+
+A Stop hook (`check_sys_path_imports.py`) blocks commits containing `sys.path.insert`, `sys.path.append`, or `sys.path +=` patterns.
+
 ## Product vs Tooling Distinction
 
 **Product** (to install in target repos):

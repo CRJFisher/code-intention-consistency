@@ -16,14 +16,10 @@ create a new intention. This is the "supersede" workflow vs the "repair" workflo
 from __future__ import annotations
 
 import json
-import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
-
-# Add project root to path for MCP tool imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from mcp_servers.intention_audit.tools.run_evidence_tests import run_evidence_tests
 from mcp_servers.intention_audit.tools.save_commit_plan import save_commit_plan
