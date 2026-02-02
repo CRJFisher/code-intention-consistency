@@ -1,11 +1,25 @@
 {
   "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run python .claude/hooks/pyright_hook.py"
+          }
+        ]
+      }
+    ],
     "Stop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "uv run python .claude/hooks/ruff_fix_hook.py"
+          }
         ]
       }
     ]
   }
 }
-
