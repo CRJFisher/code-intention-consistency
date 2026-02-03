@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 from jsonschema import Draft202012Validator
 
@@ -20,12 +21,13 @@ _SCHEMA_DIR = (
 )
 
 
-def _load_schema(name: str) -> dict:
+def _load_schema(name: str) -> dict[str, Any]:
     """Load a JSON schema from the contracts directory."""
     schema_path = _SCHEMA_DIR / f"{name}.schema.json"
     if not schema_path.exists():
         raise FileNotFoundError(f"Schema not found: {schema_path}")
-    return json.loads(schema_path.read_text(encoding="utf-8"))
+    result: dict[str, Any] = json.loads(schema_path.read_text(encoding="utf-8"))
+    return result
 
 
 def _validate_against_schema(data: dict, schema: dict) -> list[str]:
@@ -231,31 +233,195 @@ def _validate_structure_validation_basic(data: dict) -> list[str]:
                 errors.append(f"violations.{i}: missing required field 'intent_id'")
             elif not isinstance(violation["intent_id"], str):
                 errors.append(f"violations.{i}.intent_id: must be a string")
-            # Optional fields type checks
-            if (
-                "functionality_intent_id" in violation
-                and violation["functionality_intent_id"] is not None
-            ):
-                if not isinstance(violation["functionality_intent_id"], str):
-                    errors.append(
-                        f"violations.{i}.functionality_intent_id: must be a string or null"
-                    )
-            if "violating_paths" in violation and violation["violating_paths"] is not None:
-                if not isinstance(violation["violating_paths"], list):
-                    errors.append(f"violations.{i}.violating_paths: must be an array or null")
-            if "expected_prefixes" in violation and violation["expected_prefixes"] is not None:
-                if not isinstance(violation["expected_prefixes"], list):
-                    errors.append(f"violations.{i}.expected_prefixes: must be an array or null")
-            if "details" in violation and violation["details"] is not None:
-                if not isinstance(violation["details"], dict):
-                    errors.append(f"violations.{i}.details: must be an object or null")
-            if "suggested_fix" in violation and violation["suggested_fix"] is not None:
-                if not isinstance(violation["suggested_fix"], str):
-                    errors.append(f"violations.{i}.suggested_fix: must be a string or null")
+            # Optional fields type checks - combined conditions
+            func_id = violation.get("functionality_intent_id")
+            if func_id is not None and not isinstance(func_id, str):
+                errors.append(f"violations.{i}.functionality_intent_id: must be a string or null")
+            viol_paths = violation.get("violating_paths")
+            if viol_paths is not None and not isinstance(viol_paths, list):
+                errors.append(f"violations.{i}.violating_paths: must be an array or null")
+            exp_prefixes = violation.get("expected_prefixes")
+            if exp_prefixes is not None and not isinstance(exp_prefixes, list):
+                errors.append(f"violations.{i}.expected_prefixes: must be an array or null")
+            details = violation.get("details")
+            if details is not None and not isinstance(details, dict):
+                errors.append(f"violations.{i}.details: must be an object or null")
+            suggested = violation.get("suggested_fix")
+            if suggested is not None and not isinstance(suggested, str):
+                errors.append(f"violations.{i}.suggested_fix: must be a string or null")
 
     # override_rationale is optional but must be string or null
-    if "override_rationale" in data and data["override_rationale"] is not None:
-        if not isinstance(data["override_rationale"], str):
-            errors.append("override_rationale: must be a string or null")
+    override = data.get("override_rationale")
+    if override is not None and not isinstance(override, str):
+        errors.append("override_rationale: must be a string or null")
+
+    return errors
+
+
+def validate_plan_verification(data: dict) -> list[str]:
+    """
+    Validate plan verification data against the schema.
+
+    Args:
+        data: Dictionary to validate.
+
+    Returns:
+        List of validation error messages. Empty list means valid.
+    """
+    try:
+        schema = _load_schema("plan_verification")
+    except FileNotFoundError:
+        return _validate_plan_verification_basic(data)
+
+    return _validate_against_schema(data, schema)
+
+
+def _validate_plan_verification_basic(data: dict) -> list[str]:
+    """Basic validation without JSON schema."""
+    errors = []
+
+    # passed must be a boolean
+    if "passed" not in data:
+        errors.append("(root): missing required field 'passed'")
+    elif not isinstance(data["passed"], bool):
+        errors.append("passed: must be a boolean")
+
+    # issues must be an array
+    issues = data.get("issues")
+    if issues is None:
+        errors.append("(root): missing required field 'issues'")
+    elif not isinstance(issues, list):
+        errors.append("issues: must be an array")
+    else:
+        valid_types = {
+            "code_home_conflict",
+            "missing_evidence",
+            "orphan_intention",
+            "circular_dependency",
+            "scope_overlap",
+            "pattern_mismatch",
+            "confidence_low",
+        }
+        valid_severities = {"error", "warning", "info"}
+
+        for i, issue in enumerate(issues):
+            if not isinstance(issue, dict):
+                errors.append(f"issues.{i}: must be an object")
+                continue
+            if "type" not in issue:
+                errors.append(f"issues.{i}: missing required field 'type'")
+            elif issue["type"] not in valid_types:
+                errors.append(f"issues.{i}.type: must be one of {sorted(valid_types)}")
+            if "severity" not in issue:
+                errors.append(f"issues.{i}: missing required field 'severity'")
+            elif issue["severity"] not in valid_severities:
+                errors.append(f"issues.{i}.severity: must be one of {sorted(valid_severities)}")
+            if "intent_id" not in issue:
+                errors.append(f"issues.{i}: missing required field 'intent_id'")
+            elif not isinstance(issue["intent_id"], str):
+                errors.append(f"issues.{i}.intent_id: must be a string")
+            if "message" not in issue:
+                errors.append(f"issues.{i}: missing required field 'message'")
+            elif not isinstance(issue["message"], str):
+                errors.append(f"issues.{i}.message: must be a string")
+
+    # Optional numeric counts
+    for count_field in ["error_count", "warning_count", "info_count"]:
+        if count_field in data and not isinstance(data[count_field], int):
+            errors.append(f"{count_field}: must be an integer")
+
+    # override_rationale is optional but must be string or null
+    override = data.get("override_rationale")
+    if override is not None and not isinstance(override, str):
+        errors.append("override_rationale: must be a string or null")
+
+    return errors
+
+
+def validate_alignment_report(data: dict) -> list[str]:
+    """
+    Validate alignment report data against the schema.
+
+    Args:
+        data: Dictionary to validate.
+
+    Returns:
+        List of validation error messages. Empty list means valid.
+    """
+    try:
+        schema = _load_schema("alignment_report")
+    except FileNotFoundError:
+        return _validate_alignment_report_basic(data)
+
+    return _validate_against_schema(data, schema)
+
+
+def _validate_alignment_report_basic(data: dict) -> list[str]:
+    """Basic validation without JSON schema."""
+    errors = []
+
+    # aligned must be a boolean
+    if "aligned" not in data:
+        errors.append("(root): missing required field 'aligned'")
+    elif not isinstance(data["aligned"], bool):
+        errors.append("aligned: must be a boolean")
+
+    # comparisons must be an array
+    comparisons = data.get("comparisons")
+    if comparisons is None:
+        errors.append("(root): missing required field 'comparisons'")
+    elif not isinstance(comparisons, list):
+        errors.append("comparisons: must be an array")
+    else:
+        valid_statuses = {
+            "aligned",
+            "partial",
+            "misaligned",
+            "missing_declared",
+            "missing_inferred",
+        }
+        for i, comp in enumerate(comparisons):
+            if not isinstance(comp, dict):
+                errors.append(f"comparisons.{i}: must be an object")
+                continue
+            if "status" not in comp:
+                errors.append(f"comparisons.{i}: missing required field 'status'")
+            elif comp["status"] not in valid_statuses:
+                errors.append(f"comparisons.{i}.status: must be one of {sorted(valid_statuses)}")
+            if "confidence" in comp:
+                conf = comp["confidence"]
+                if not isinstance(conf, (int, float)):
+                    errors.append(f"comparisons.{i}.confidence: must be a number")
+                elif not (0.0 <= conf <= 1.0):
+                    errors.append(f"comparisons.{i}.confidence: must be between 0.0 and 1.0")
+
+    # Validate numeric count fields
+    count_fields = [
+        "total_declared",
+        "total_inferred",
+        "aligned_count",
+        "partial_count",
+        "misaligned_count",
+        "missing_declared_count",
+        "missing_inferred_count",
+    ]
+    for field in count_fields:
+        if field in data and not isinstance(data[field], int):
+            errors.append(f"{field}: must be an integer")
+
+    # Validate score fields (0.0-1.0)
+    score_fields = ["alignment_score", "coverage_score", "confidence_avg"]
+    for field in score_fields:
+        if field in data:
+            val = data[field]
+            if not isinstance(val, (int, float)):
+                errors.append(f"{field}: must be a number")
+            elif not (0.0 <= val <= 1.0):
+                errors.append(f"{field}: must be between 0.0 and 1.0")
+
+    # override_rationale is optional but must be string or null
+    override = data.get("override_rationale")
+    if override is not None and not isinstance(override, str):
+        errors.append("override_rationale: must be a string or null")
 
     return errors
