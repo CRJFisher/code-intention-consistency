@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run python .claude/hooks/pyright_hook.py"
+            "command": "uv run python \"$CLAUDE_PROJECT_DIR/.claude/hooks/pyright_hook.py\""
           }
         ]
       }
@@ -16,15 +16,15 @@
         "hooks": [
           {
             "type": "command",
-            "command": "uv run python .claude/hooks/ruff_fix_hook.py"
+            "command": "uv run python \"$CLAUDE_PROJECT_DIR/.claude/hooks/ruff_fix_hook.py\""
           },
           {
             "type": "command",
-            "command": "uv run python .claude/hooks/test_hook.py"
+            "command": "uv run python \"$CLAUDE_PROJECT_DIR/.claude/hooks/test_hook.py\""
           },
           {
             "type": "command",
-            "command": "uv run python .claude/hooks/check_sys_path_imports.py"
+            "command": "uv run python \"$CLAUDE_PROJECT_DIR/.claude/hooks/check_sys_path_imports.py\""
           }
         ]
       }

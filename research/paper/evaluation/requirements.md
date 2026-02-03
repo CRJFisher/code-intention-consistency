@@ -22,29 +22,29 @@
 
 #### Automated Metrics
 
-| Metric | Measurement | TODO |
-|--------|-------------|------|
-| Commit atomicity | Files per commit, semantic clustering | Define clustering algorithm |
-| Test pass rate | Run test suite | Straightforward |
-| Lint/type errors | ruff, pyright | Straightforward |
-| Lines changed per commit | git diff stats | Straightforward |
-| Commit count | Number of commits per task | Straightforward |
+| Metric                   | Measurement                           | TODO                        |
+| ------------------------ | ------------------------------------- | --------------------------- |
+| Commit atomicity         | Files per commit, semantic clustering | Define clustering algorithm |
+| Test pass rate           | Run test suite                        | Straightforward             |
+| Lint/type errors         | ruff, pyright                         | Straightforward             |
+| Lines changed per commit | git diff stats                        | Straightforward             |
+| Commit count             | Number of commits per task            | Straightforward             |
 
 #### LLM-as-Judge Metrics
 
-| Metric | Measurement | TODO |
-|--------|-------------|------|
+| Metric                   | Measurement                                 | TODO                                  |
+| ------------------------ | ------------------------------------------- | ------------------------------------- |
 | Tangled commit detection | Classify if commit serves multiple purposes | Design prompt, validate against human |
-| Commit message accuracy | Does message match diff? | Design rubric |
-| Intent-to-code alignment | Does code implement stated intention? | Design prompt |
+| Commit message accuracy  | Does message match diff?                    | Design rubric                         |
+| Intent-to-code alignment | Does code implement stated intention?       | Design prompt                         |
 
 #### Human Evaluation Metrics
 
-| Metric | Measurement | TODO |
-|--------|-------------|------|
-| Intent fidelity | Did code match original task? | Design rubric, recruit evaluators |
-| Auditability | Can reviewer follow "why"? | Design rubric |
-| Code review difficulty | Time/effort to understand changes | Design protocol |
+| Metric                 | Measurement                       | TODO                              |
+| ---------------------- | --------------------------------- | --------------------------------- |
+| Intent fidelity        | Did code match original task?     | Design rubric, recruit evaluators |
+| Auditability           | Can reviewer follow "why"?        | Design rubric                     |
+| Code review difficulty | Time/effort to understand changes | Design protocol                   |
 
 > **TODO**: Review benchmark papers to understand standard metrics in agent evaluation
 
@@ -150,25 +150,25 @@ For each metric:
 
 ## Risks and Mitigations
 
-| Risk | Mitigation | TODO |
-|------|------------|------|
-| LLM variance swamps signal | Multiple runs, statistical tests | Power analysis |
-| Framework overhead unfair | Measure cost alongside quality | Define cost metrics |
-| Results specific to tasks | Diverse task selection | Define diversity criteria |
-| Human eval bias | Blinding, multiple evaluators | Recruit evaluators |
-| Prompt sensitivity | Document prompts, test variations | Sensitivity analysis |
-| Cherry-picked tasks | Pre-register task selection criteria | Write pre-registration |
+| Risk                       | Mitigation                           | TODO                      |
+| -------------------------- | ------------------------------------ | ------------------------- |
+| LLM variance swamps signal | Multiple runs, statistical tests     | Power analysis            |
+| Framework overhead unfair  | Measure cost alongside quality       | Define cost metrics       |
+| Results specific to tasks  | Diverse task selection               | Define diversity criteria |
+| Human eval bias            | Blinding, multiple evaluators        | Recruit evaluators        |
+| Prompt sensitivity         | Document prompts, test variations    | Sensitivity analysis      |
+| Cherry-picked tasks        | Pre-register task selection criteria | Write pre-registration    |
 
 ## Cost Metrics
 
 To ensure fair comparison, also measure:
 
-| Metric | Measurement |
-|--------|-------------|
-| Total tokens consumed | API usage |
-| Wall clock time | Start to finish |
-| Number of API calls | Round trips |
-| Total cost ($) | Token costs |
+| Metric                | Measurement     |
+| --------------------- | --------------- |
+| Total tokens consumed | API usage       |
+| Wall clock time       | Start to finish |
+| Number of API calls   | Round trips     |
+| Total cost ($)        | Token costs     |
 
 ## Open Questions (require literature review)
 

@@ -223,8 +223,8 @@ class TranscriptCompiler:
                     is_error = item.get("is_error", False)
                     status = "Error" if is_error else "Success"
 
-                    # Check for agent completion
-                    if tool_result and tool_result.get("isAgent"):
+                    # Check for agent completion (tool_result can be dict or list)
+                    if isinstance(tool_result, dict) and tool_result.get("isAgent"):
                         agent_id = tool_result.get("agentId", "unknown")
                         duration = tool_result.get("totalDurationMs", 0) / 1000
                         tokens = tool_result.get("totalTokens", 0)

@@ -23,11 +23,11 @@ By requiring LLM coding agents to declare intentions upfront and validate commit
 
 ## Key Documents
 
-| Document | Purpose |
-|----------|---------|
-| [Evaluation Requirements](evaluation/requirements.md) | Experimental design skeleton with TODOs |
-| [Benchmarks to Study](evaluation/benchmarks-to-study.md) | Literature review tracking |
-| [Research Index](../index.md) | Background research and synthesis |
+| Document                                                 | Purpose                                 |
+| -------------------------------------------------------- | --------------------------------------- |
+| [Evaluation Requirements](evaluation/requirements.md)    | Experimental design skeleton with TODOs |
+| [Benchmarks to Study](evaluation/benchmarks-to-study.md) | Literature review tracking              |
+| [Research Index](../index.md)                            | Background research and synthesis       |
 
 ## Major Open Questions
 
