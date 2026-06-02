@@ -1,3 +1,10 @@
+---
+id: doc-9
+title: Development Constitution
+type: note
+created_date: "2026-06-02 12:09"
+---
+
 <!--
 Sync Impact Report
 - Version change: 0.1.0 → 1.0.0
@@ -43,6 +50,7 @@ This constitution governs **how to develop THIS repository** (the code-intention
 The "Intention Audit Trail MVP Plan.md" is the singular authoritative design document for this repository's development.
 
 **Requirements**:
+
 - All implementation work MUST align with the MVP Plan's architecture, data contracts, and acceptance criteria
 - When conflicts arise between design documents, the MVP Plan takes precedence
 - Changes to core architecture MUST be reflected in the MVP Plan first, then implementation follows
@@ -55,6 +63,7 @@ The "Intention Audit Trail MVP Plan.md" is the singular authoritative design doc
 All Python dependency management MUST use `uv`.
 
 **Requirements**:
+
 - Maintain `pyproject.toml` with all runtime and development dependencies declared
 - Commit `uv.lock` to version control for deterministic builds
 - Clearly separate development dependencies from runtime dependencies
@@ -67,6 +76,7 @@ All Python dependency management MUST use `uv`.
 Testing the intention audit trail requires **nested Git repositories** as test fixtures.
 
 **Requirements**:
+
 - Maintain `tests/fixtures/sample-repos/` containing nested `.git` projects for testing hook behavior
 - Evidence tests MUST verify stop hook enforcement (coverage checks, evidence execution, structural alignment)
 - Contract tests MUST validate MCP planner tool inputs/outputs against schemas in MVP Plan
@@ -81,6 +91,7 @@ Testing the intention audit trail requires **nested Git repositories** as test f
 The stop hook at `.claude/hooks/intent_audit_stop_hook.py` is critical infrastructure.
 
 **Requirements**:
+
 - Hook MUST remain **stdlib-only** (no external dependencies) for maximum portability
 - Error messages MUST be comprehensive and guide the agent to resolution with actionable next steps
 - Hook MUST follow MVP's file-level commit granularity (no hunk-splitting in MVP)
@@ -96,6 +107,7 @@ The stop hook at `.claude/hooks/intent_audit_stop_hook.py` is critical infrastru
 The MCP planner tool interface MUST match the contract specified in the MVP Plan.
 
 **Requirements**:
+
 - **Inputs**: `transcript_path`, `repo_root`, `diff_base`, current `intentions.yaml`
 - **Outputs**: Updated `intentions.yaml`, `.intent_audit/sessions/<session_id>.json`, `.intent_audit/commit_plan.yaml`
 - Schema validation MUST enforce `commit_plan.yaml` version 1 format with `ready`, `commits[]`, and all required fields
@@ -109,12 +121,14 @@ The MCP planner tool interface MUST match the contract specified in the MVP Plan
 This repository SHOULD dogfood its own intention audit trail system once the MVP is functional.
 
 **Pre-bootstrap** (current state):
+
 - Track high-level intentions manually in design documents
 - Use conventional commit messages with clear scope (`feat:`, `fix:`, `test:`, `docs:`)
 - Prepare for bootstrap by organizing code according to functionality intentions (as defined in MVP Plan)
 - Mark the bootstrap transition point explicitly (after MVP acceptance criteria are met)
 
 **Bootstrap timing**: Deferred until MVP is functional and tool maturity assessed. Build MVP first, then decide based on:
+
 - MVP acceptance criteria met (from MVP Plan)
 - Demo scenario works end-to-end
 - Sample repository tests pass with high coverage
@@ -129,6 +143,7 @@ This repository SHOULD dogfood its own intention audit trail system once the MVP
 All Python code MUST meet these standards.
 
 **Requirements**:
+
 - Target Python 3.12+ language features
 - Include type hints for all public interfaces following PEP 484
 - Pass `ruff check .` with zero warnings (configuration in `pyproject.toml`)
@@ -136,6 +151,7 @@ All Python code MUST meet these standards.
 - Include docstrings for all public functions/classes following PEP 257
 
 **Exceptions**:
+
 - Test code MAY relax type hint requirements for internal test helpers
 - Test fixtures and test contracts MUST be type-hinted for clarity
 
@@ -179,6 +195,7 @@ The development workflow MUST include these checkpoints.
 ### Gate 1: Design Review
 
 **Before** implementing any new feature:
+
 - Review alignment with MVP Plan (Principle I)
 - Identify conflicts with existing design
 - Update MVP Plan if architecture changes
@@ -187,6 +204,7 @@ The development workflow MUST include these checkpoints.
 ### Gate 2: Test-First Development
 
 **Before** implementing functionality:
+
 - Write evidence tests that demonstrate the requirement
 - Verify tests FAIL initially (red-green-refactor)
 - Implement until tests pass
@@ -195,6 +213,7 @@ The development workflow MUST include these checkpoints.
 ### Gate 3: Hook Integration Testing
 
 **Before** committing hook changes:
+
 - Run full test suite against sample repositories
 - Manually test the hook with a real coding session
 - Verify error messages are actionable and include concrete examples
@@ -203,6 +222,7 @@ The development workflow MUST include these checkpoints.
 ### Gate 4: MCP Planner Contract Validation
 
 **Before** releasing planner changes:
+
 - Run contract tests verifying input/output schemas match MVP Plan
 - Test against the stop hook's validation logic
 - Verify the demo scenario still works end-to-end
@@ -211,6 +231,7 @@ The development workflow MUST include these checkpoints.
 ### Gate 5: Bootstrap Readiness
 
 **Before** enabling dogfooding:
+
 - MVP acceptance criteria met (from MVP Plan section)
 - Demo scenario works end-to-end
 - Sample repositories have complete test coverage

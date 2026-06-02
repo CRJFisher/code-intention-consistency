@@ -1,3 +1,11 @@
+---
+id: doc-3
+title: 001 Intention Audit Trail — Data Model
+type: spec
+created_date: '2026-06-02 12:09'
+---
+
+
 # Data Model: Intention Audit Trail MVP
 
 **Date**: 2026-01-27  

@@ -1,6 +1,6 @@
 # code-intention-consistency Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-01
+Last updated: 2026-06-02
 
 ## Active Technologies
 
@@ -22,7 +22,7 @@ src/intention_audit/           # Intention Audit product code
     evidence-checker.md
     structure-validator.md
     session-recorder.md
-  models/                      # Data models
+  models/                      # Data models + structural validators
   evidence/                    # Evidence test runner
   structure/                   # Code home boundary checker
   reporting/                   # Failure context rendering
@@ -45,9 +45,23 @@ tests/
     demo_repo/                 # Demo with evidence tests
     structure_repo/            # Repo with code_home boundaries
 
-specs/                         # Feature specifications
+backlog/                       # Task and spec management (backlog.md)
+  tasks/                       # Feature/bug tasks
+  docs/                        # Specs, plans, data models, design notes
+  decisions/                   # Decision records
 .claude/hooks/                 # Project-local hooks for THIS repo
 ```
+
+## Task & Spec Management
+
+This project uses [backlog.md](https://backlog.md) for tasks and specifications,
+driven through the connected `backlog` MCP server.
+
+- Tasks live in `backlog/tasks/` (statuses: To Do, In Progress, Done).
+- Specifications, plans, data models, and design notes live in `backlog/docs/`.
+- The original 001-intent-audit-trail spec set is preserved as `doc-1` through
+  `doc-8`; the development constitution is `doc-9`. The artifact JSON schemas are
+  reference contracts under `backlog/docs/contracts/`.
 
 ## Commands
 
@@ -66,6 +80,7 @@ Python 3.12: Follow PEP 8, type hints required for public APIs, docstrings requi
 ## Import Guidelines
 
 This project uses `uv` with editable installs. All packages are importable directly:
+
 - `from intention_audit.models.X import Y`
 - `from mcp_servers.intention_audit.tools.X import Y`
 
@@ -76,11 +91,13 @@ A Stop hook (`check_sys_path_imports.py`) blocks commits containing `sys.path.in
 ## Product vs Tooling Distinction
 
 **Product** (to install in target repos):
+
 - `src/intention_audit/hooks/stop_hook.py` → `.claude/hooks/`
 - `src/intention_audit/agents/*.md` → `.claude/agents/`
 - MCP server tools registered via MCP configuration
 
 **Tooling** (for developing THIS repo):
+
 - `.claude/hooks/` - Project-local hooks
 - `tests/` - Test infrastructure
 
@@ -99,6 +116,7 @@ User makes changes → Stop hook runs →
 ## Configuration
 
 The hook reads `.intent_audit/config.json` for optional settings:
+
 ```json
 {
   "evidence_checking": true,

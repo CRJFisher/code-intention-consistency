@@ -1,3 +1,11 @@
+---
+id: doc-6
+title: 001 Intention Audit Trail — Task Breakdown
+type: plan
+created_date: '2026-06-02 12:09'
+---
+
+
 # Tasks: Intention Audit Trail MVP
 
 **Date**: 2026-01-30

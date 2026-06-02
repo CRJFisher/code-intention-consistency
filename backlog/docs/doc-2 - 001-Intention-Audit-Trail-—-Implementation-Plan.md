@@ -1,3 +1,11 @@
+---
+id: doc-2
+title: 001 Intention Audit Trail — Implementation Plan
+type: plan
+created_date: '2026-06-02 12:09'
+---
+
+
 # Implementation Plan: Intention Audit Trail MVP (Stop Hook + MCP Planner)
 
 **Branch**: `[main]` | **Date**: 2026-01-27 | **Spec**: `specs/main/spec.md`  

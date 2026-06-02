@@ -1,3 +1,11 @@
+---
+id: doc-5
+title: 001 Intention Audit Trail — Quickstart
+type: guide
+created_date: '2026-06-02 12:09'
+---
+
+
 # Quickstart: Intention Audit Trail MVP
 
 This quickstart describes the **demo flow** for the MVP: stop-time consistency checks that are intention-aware.

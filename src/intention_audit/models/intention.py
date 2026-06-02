@@ -1,7 +1,7 @@
 """
 Intention model representing a goal/functionality/implementation node.
 
-Based on specs/001-intent-audit-trail/data-model.md
+Based on the data model in backlog/docs (doc-3).
 """
 
 from __future__ import annotations

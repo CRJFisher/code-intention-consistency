@@ -1,7 +1,7 @@
 """
 SessionRecord model for committed audit records.
 
-Based on specs/001-intent-audit-trail/data-model.md
+Based on the data model in backlog/docs (doc-3).
 """
 
 from __future__ import annotations

@@ -1,3 +1,11 @@
+---
+id: doc-1
+title: 001 Intention Audit Trail — Specification
+type: spec
+created_date: '2026-06-02 12:09'
+---
+
+
 # Feature Specification: Intention Audit Trail MVP (Stop Hook + MCP Planner)
 
 **Feature Branch**: `[main]`  

@@ -1,3 +1,11 @@
+---
+id: doc-8
+title: 001 Intention Audit Trail — MCP Planner Contract
+type: spec
+created_date: '2026-06-02 12:09'
+---
+
+
 # MCP Planner Tool Contract (MVP)
 
 ## Tool name (proposed)

@@ -116,7 +116,6 @@ name = "code-intention-consistency"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "jsonschema" },
     { name = "mcp" },
     { name = "pyyaml" },
 ]
@@ -132,7 +131,6 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "jsonschema", specifier = ">=4.20.0" },
     { name = "mcp", specifier = ">=1.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
     { name = "pyright", marker = "extra == 'dev'", specifier = ">=1.1.350" },

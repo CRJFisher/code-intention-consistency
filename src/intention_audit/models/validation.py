@@ -1,52 +1,18 @@
 """
 Schema validation utilities for intention audit models.
 
-Uses JSON schemas from specs/001-intent-audit-trail/contracts/.
+Validates the audit artifacts (intentions, commit plans, session records,
+structure/plan/alignment reports) with structural checks. The canonical JSON
+schemas for these artifacts live as reference docs in
+``backlog/docs/contracts/``.
 """
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
-from typing import Any
-
-from jsonschema import Draft202012Validator
-
-# Schema directory relative to this module
-_SCHEMA_DIR = (
-    Path(__file__).parent.parent.parent.parent.parent
-    / "specs"
-    / "001-intent-audit-trail"
-    / "contracts"
-)
-
-
-def _load_schema(name: str) -> dict[str, Any]:
-    """Load a JSON schema from the contracts directory."""
-    schema_path = _SCHEMA_DIR / f"{name}.schema.json"
-    if not schema_path.exists():
-        raise FileNotFoundError(f"Schema not found: {schema_path}")
-    result: dict[str, Any] = json.loads(schema_path.read_text(encoding="utf-8"))
-    return result
-
-
-def _validate_against_schema(data: dict, schema: dict) -> list[str]:
-    """
-    Validate data against a JSON schema.
-
-    Returns a list of validation error messages.
-    """
-    validator = Draft202012Validator(schema)
-    errors = []
-    for error in sorted(validator.iter_errors(data), key=lambda e: e.path):
-        path = ".".join(str(p) for p in error.path) if error.path else "(root)"
-        errors.append(f"{path}: {error.message}")
-    return errors
-
 
 def validate_intentions(data: dict) -> list[str]:
     """
-    Validate intentions data against the schema.
+    Validate intentions data.
 
     Args:
         data: Dictionary to validate (should have 'root' key or be root intention directly).
@@ -54,24 +20,9 @@ def validate_intentions(data: dict) -> list[str]:
     Returns:
         List of validation error messages. Empty list means valid.
     """
-    try:
-        schema = _load_schema("intentions")
-    except FileNotFoundError:
-        # If schema not found, perform basic validation
-        return _validate_intentions_basic(data)
-
-    # The schema expects {"root": {...}}, but we might get the root intention directly
-    if "root" not in data and "id" in data:
-        data = {"root": data}
-
-    return _validate_against_schema(data, schema)
-
-
-def _validate_intentions_basic(data: dict) -> list[str]:
-    """Basic validation without JSON schema."""
     errors = []
 
-    # Check for root or direct intention
+    # Accept either a {"root": {...}} wrapper or a direct intention.
     intention = data.get("root", data)
     if not isinstance(intention, dict):
         errors.append("(root): must be an object")
@@ -97,7 +48,7 @@ def _validate_intentions_basic(data: dict) -> list[str]:
 
 def validate_commit_plan(data: dict) -> list[str]:
     """
-    Validate commit plan data against the schema.
+    Validate commit plan data.
 
     Args:
         data: Dictionary to validate.
@@ -105,16 +56,6 @@ def validate_commit_plan(data: dict) -> list[str]:
     Returns:
         List of validation error messages. Empty list means valid.
     """
-    try:
-        schema = _load_schema("commit_plan")
-    except FileNotFoundError:
-        return _validate_commit_plan_basic(data)
-
-    return _validate_against_schema(data, schema)
-
-
-def _validate_commit_plan_basic(data: dict) -> list[str]:
-    """Basic validation without JSON schema."""
     errors = []
 
     if data.get("version") != 1:
@@ -143,7 +84,7 @@ def _validate_commit_plan_basic(data: dict) -> list[str]:
 
 def validate_session_record(data: dict) -> list[str]:
     """
-    Validate session record data against the schema.
+    Validate session record data.
 
     Args:
         data: Dictionary to validate.
@@ -151,16 +92,6 @@ def validate_session_record(data: dict) -> list[str]:
     Returns:
         List of validation error messages. Empty list means valid.
     """
-    try:
-        schema = _load_schema("session_record")
-    except FileNotFoundError:
-        return _validate_session_record_basic(data)
-
-    return _validate_against_schema(data, schema)
-
-
-def _validate_session_record_basic(data: dict) -> list[str]:
-    """Basic validation without JSON schema."""
     errors = []
 
     required = [
@@ -188,7 +119,7 @@ def _validate_session_record_basic(data: dict) -> list[str]:
 
 def validate_structure_validation(data: dict) -> list[str]:
     """
-    Validate structure validation data against the schema.
+    Validate structure validation data.
 
     Args:
         data: Dictionary to validate.
@@ -196,16 +127,6 @@ def validate_structure_validation(data: dict) -> list[str]:
     Returns:
         List of validation error messages. Empty list means valid.
     """
-    try:
-        schema = _load_schema("structure_validation")
-    except FileNotFoundError:
-        return _validate_structure_validation_basic(data)
-
-    return _validate_against_schema(data, schema)
-
-
-def _validate_structure_validation_basic(data: dict) -> list[str]:
-    """Basic validation without JSON schema."""
     errors = []
 
     # passed must be a boolean
@@ -260,7 +181,7 @@ def _validate_structure_validation_basic(data: dict) -> list[str]:
 
 def validate_plan_verification(data: dict) -> list[str]:
     """
-    Validate plan verification data against the schema.
+    Validate plan verification data.
 
     Args:
         data: Dictionary to validate.
@@ -268,16 +189,6 @@ def validate_plan_verification(data: dict) -> list[str]:
     Returns:
         List of validation error messages. Empty list means valid.
     """
-    try:
-        schema = _load_schema("plan_verification")
-    except FileNotFoundError:
-        return _validate_plan_verification_basic(data)
-
-    return _validate_against_schema(data, schema)
-
-
-def _validate_plan_verification_basic(data: dict) -> list[str]:
-    """Basic validation without JSON schema."""
     errors = []
 
     # passed must be a boolean
@@ -340,7 +251,7 @@ def _validate_plan_verification_basic(data: dict) -> list[str]:
 
 def validate_alignment_report(data: dict) -> list[str]:
     """
-    Validate alignment report data against the schema.
+    Validate alignment report data.
 
     Args:
         data: Dictionary to validate.
@@ -348,16 +259,6 @@ def validate_alignment_report(data: dict) -> list[str]:
     Returns:
         List of validation error messages. Empty list means valid.
     """
-    try:
-        schema = _load_schema("alignment_report")
-    except FileNotFoundError:
-        return _validate_alignment_report_basic(data)
-
-    return _validate_against_schema(data, schema)
-
-
-def _validate_alignment_report_basic(data: dict) -> list[str]:
-    """Basic validation without JSON schema."""
     errors = []
 
     # aligned must be a boolean

@@ -1,3 +1,11 @@
+---
+id: doc-4
+title: 001 Intention Audit Trail — Research
+type: note
+created_date: '2026-06-02 12:09'
+---
+
+
 # Research: Intention Audit Trail MVP (Stop Hook + MCP Planner)
 
 **Date**: 2026-01-27  
