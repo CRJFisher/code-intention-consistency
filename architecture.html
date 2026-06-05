@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Intention Audit Trail — Proposed Offline Side-Agent Architecture</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  :root{
+    --bg:#0f1117; --panel:#171a23; --panel2:#1d2130; --ink:#e6e8ee; --muted:#9aa3b2;
+    --read:#6ea8fe; --offline:#3ddc97; --trigger:#c08cff; --gate:#f5a623; --cut:#ff6b6b; --line:#2a2f3d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;}
+  .wrap{max-width:1280px;margin:0 auto;padding:48px 24px 96px}
+  h1{font-size:34px;margin:0 0 6px;letter-spacing:-.02em}
+  h2{font-size:24px;margin:60px 0 8px;letter-spacing:-.01em;border-bottom:1px solid var(--line);padding-bottom:8px}
+  h3{font-size:17px;margin:26px 0 6px;color:var(--read)}
+  .sub{color:var(--muted);font-size:18px;margin:0 0 16px}
+  p{color:#cfd4de}
+  em{color:#eef1f6;font-style:italic}
+  code{background:#11151f;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:13px;
+    font-family:"SF Mono",ui-monospace,Menlo,Consolas,monospace;color:#cbd5e1}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px 26px;margin:18px 0}
+  .mermaid{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:22px;margin:18px 0;overflow-x:auto;
+    width:96vw;max-width:96vw;margin-left:calc(50% - 48vw);margin-right:calc(50% - 48vw);text-align:center}
+  .mermaid svg{margin:0 auto}
+  .lead{background:linear-gradient(135deg,rgba(110,168,254,.10),rgba(61,220,151,.07));
+    border:1px solid var(--line);border-left:4px solid var(--read);border-radius:0 14px 14px 0;padding:18px 22px;margin:18px 0;font-size:17px}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;margin:12px 0 0;font-size:13.5px;color:var(--muted)}
+  .dot{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;vertical-align:middle}
+  .kpi{display:flex;gap:16px;flex-wrap:wrap;margin:18px 0}
+  .kpi div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 20px;min-width:130px;flex:1}
+  .kpi b{display:block;font-size:26px;line-height:1.15}
+  .kpi span{color:var(--muted);font-size:12.5px}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:820px){.cols{grid-template-columns:1fr}}
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+  .card h4{margin:0 0 8px;font-size:15px}
+  .card.before{border-top:3px solid var(--cut)}
+  .card.after{border-top:3px solid var(--offline)}
+  table{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+  td.k{font-family:"SF Mono",ui-monospace,Menlo,monospace;font-size:12px;color:#cbd5e1;white-space:nowrap}
+  .pill{font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+  .p-read{background:rgba(110,168,254,.14);color:var(--read)}
+  .p-offline{background:rgba(61,220,151,.14);color:var(--offline)}
+  .p-trigger{background:rgba(192,140,255,.16);color:var(--trigger)}
+  .p-gate{background:rgba(245,166,35,.14);color:var(--gate)}
+  .p-cut{background:rgba(255,107,107,.14);color:var(--cut)}
+  ol,ul{padding-left:20px} li{margin:6px 0;color:#cfd4de}
+  .callout{border-left:3px solid var(--gate);background:rgba(245,166,35,.07);padding:14px 18px;border-radius:0 10px 10px 0;margin:16px 0}
+  .strike{color:var(--cut);text-decoration:line-through;opacity:.85}
+  .foot{color:var(--muted);font-size:13px;margin-top:64px;border-top:1px solid var(--line);padding-top:16px}
+  .flowbox{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:8px 20px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>Intention Audit Trail</h1>
+  <p class="sub">Proposed architecture — offline writes, inline reads</p>
+
+  <div class="lead">
+    Intention-tree <strong>writes happen offline</strong> in a fire-and-forget side agent (claude-agent-sdk),
+    so the coding session is never interrupted. The only inline touchpoints are two cheap, no-LLM guards: a
+    <strong>read injection</strong> at planning time — the relevant historical intention slice for the region
+    being worked, so the agent can <strong>FLAG</strong> (a past intention may be inadvertently overridden →
+    surface to the user), <strong>REFINE</strong>, or <strong>PASS-THROUGH</strong> — and a
+    <strong>commit guard</strong> that denies manual <code>git commit</code> so the audit writer stays the sole
+    author of history. A thin deterministic Stop gate commits when fresh artifacts exist — no LLM in any hook.
+  </div>
+
+  <div class="kpi">
+    <div><b style="color:var(--cut)">932→~250</b><span>Stop-hook lines<br>(LLM loop deleted)</span></div>
+    <div><b style="color:var(--cut)">16→5</b><span>MCP tools<br>(persist-only)</span></div>
+    <div><b style="color:var(--offline)">0</b><span>in-hook LLM calls<br>(was 5 sub-agents)</span></div>
+    <div><b style="color:var(--read)">&lt;100ms</b><span>only inline cost<br>(read injection)</span></div>
+    <div><b style="color:var(--gate)">&lt;1s</b><span>Stop gate<br>(pytest now offline)</span></div>
+  </div>
+
+  <h2>1 · The shift</h2>
+  <div class="cols">
+    <div class="card before">
+      <h4>Before — inline 5-phase blocking loop</h4>
+      <ul>
+        <li>Every <code>Stop</code> runs a 932-line hook that spawns 5 LLM sub-agents <em>in sequence</em>.</li>
+        <li>Evidence phase runs <code>pytest</code> inline — up to a ~60s stall.</li>
+        <li>16 MCP tools + 16 agent specs; the session is interrupted on every stop.</li>
+        <li>Reasoning lives <em>on the hot path</em>.</li>
+      </ul>
+    </div>
+    <div class="card after">
+      <h4>After — offline writes, inline read</h4>
+      <ul>
+        <li>One <code>UserPromptSubmit</code> read-injection (no LLM, &lt;100ms) — the sole intrusion.</li>
+        <li>One detached offline writer agent does all analysis &amp; persistence, off the hot path.</li>
+        <li><code>Stop</code> becomes a ~250-line deterministic commit gate reading a run-manifest.</li>
+        <li>Reasoning is <em>eventual &amp; crash-isolated</em>; the session never waits on it.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h2>2 · Architecture &amp; hook wiring</h2>
+  <p>Six roles across three inline hooks (read injection, commit guard, Stop gate — all no-LLM), two
+  fire-and-forget triggers, one offline brain, and the artifact store. Git <code>Intent-Id</code> trailers
+  remain the durable source of truth; <code>.intent_audit/</code> is a rebuildable cache.</p>
+
+  <div class="legend">
+    <span><span class="dot" style="background:var(--read)"></span>inline read (no LLM)</span>
+    <span><span class="dot" style="background:var(--cut)"></span>inline commit guard (deny)</span>
+    <span><span class="dot" style="background:var(--trigger)"></span>fire-and-forget trigger</span>
+    <span><span class="dot" style="background:var(--offline)"></span>offline brain (LLM)</span>
+    <span><span class="dot" style="background:var(--gate)"></span>deterministic Stop gate</span>
+  </div>
+
+  <div class="mermaid">
+flowchart TB
+    subgraph SESSION["MAIN CODING SESSION — never blocked by analysis"]
+      direction TB
+      UP(["UserPromptSubmit"]):::read
+      EDITS["agent plans &amp; edits<br/>(Edit / Write)"]:::neutral
+      BASH(["PreToolUse · Bash<br/>(git commit attempt)"]):::guard
+      PTB(["PostToolBatch"]):::trig
+      SE(["SessionEnd"]):::trig
+      STOP(["Stop"]):::gate
+    end
+
+    INJ["read_injector · inject_intent.py<br/>git status → file→intent index<br/>(code_home prefix match)<br/>returns additionalContext:<br/>slice + FLAG / REFINE / PASS-THROUGH"]:::read
+    GUARD["commit_guard.py<br/>deny 'git commit…'<br/>writer is the sole author"]:::guard
+    LAUNCH["writer_launcher (non-LLM shim)<br/>WAL append · 2s debounce<br/>in-flight diff_hash check"]:::trig
+    WRITER["writer_agent (claude-agent-sdk, detached)<br/>ONE pass = old 5 phases:<br/>map → plan → evidence → structure → record<br/>.lock · diff_hash idempotency · run-manifest checkpoints"]:::offline
+    GATE["stop_gate (deterministic, no LLM)<br/>recompute diff_hash → read run-manifest<br/>fresh→commit · in-flight→retry · missing→trigger"]:::gate
+    STORE[(".intent_audit/&lt;session&gt;/&lt;diff_hash&gt;/<br/>5 artifacts + run-manifest + wal + .lock")]:::store
+    GIT[("git history<br/>commits w/ Intent-Id / Intent-Path trailers<br/>= durable audit trail")]:::store
+    TOOLS["5 persist-only MCP tools<br/>save_intentions · save_commit_plan<br/>run_evidence_tests · save_structure_validation<br/>save_session_record"]:::offline
+
+    UP --> INJ -->|"additionalContext<br/>(spill to file if &gt;10k)"| EDITS
+    BASH --> GUARD -.->|"permissionDecision: deny<br/>→ changes stay uncommitted"| EDITS
+    EDITS --> PTB --> LAUNCH
+    SE --> LAUNCH
+    LAUNCH -.->|"fire &amp; forget,<br/>after debounce"| WRITER
+    WRITER --> TOOLS --> STORE
+    STOP --> GATE
+    GATE -->|"reads"| STORE
+    GATE -->|"stage per commit_plan<br/>+ build trailers"| GIT
+    STORE -.->|"mtime invalidates<br/>read index"| INJ
+    GIT -.->|"last N Intent-Ids<br/>= history hint"| INJ
+
+    classDef read fill:#16203a,stroke:#6ea8fe,color:#e6e8ee;
+    classDef offline fill:#13241c,stroke:#3ddc97,color:#e6e8ee;
+    classDef trig fill:#201733,stroke:#c08cff,color:#e6e8ee;
+    classDef gate fill:#241c10,stroke:#f5a623,color:#e6e8ee;
+    classDef guard fill:#2a1518,stroke:#ff6b6b,color:#e6e8ee;
+    classDef store fill:#11151f,stroke:#9aa3b2,color:#e6e8ee;
+    classDef neutral fill:#1d2130,stroke:#3a4152,color:#cfd4de;
+  </div>
+
+  <table>
+    <thead><tr><th>Hook</th><th>Role</th><th>Does</th><th>Blocking</th></tr></thead>
+    <tbody>
+      <tr><td class="k">UserPromptSubmit</td><td><span class="pill p-read">inline read</span></td>
+        <td>Infer region from <code>git status</code>, inject minimal intention slice + FLAG/REFINE/PASS-THROUGH. <code>decision: allow</code> always.</td>
+        <td>inline, non-blocking</td></tr>
+      <tr><td class="k">PreToolUse <span style="color:var(--muted)">(Bash)</span></td><td><span class="pill p-cut">commit guard</span></td>
+        <td>Inspect <code>tool_input.command</code>; if it creates a commit (<code>git commit</code> / <code>commit-tree</code> / <code>merge</code> / <code>rebase</code> / <code>cherry-pick</code> / <code>revert</code>) return <code>permissionDecision: deny</code> with a redirect message. Else <code>allow</code>.</td>
+        <td>inline, denies only commits</td></tr>
+      <tr><td class="k">PostToolBatch</td><td><span class="pill p-trigger">trigger</span></td>
+        <td>If batch has Edit/Write: append to WAL, re-arm 2s debounce, spawn detached writer. Returns instantly.</td>
+        <td>fire-and-forget</td></tr>
+      <tr><td class="k">SessionEnd</td><td><span class="pill p-trigger">trigger</span></td>
+        <td>Force final WAL flush + writer spawn, bounded-wait for in-flight runs to drain so the session audit is complete.</td>
+        <td>fire-and-forget</td></tr>
+      <tr><td class="k">Stop</td><td><span class="pill p-gate">commit gate</span></td>
+        <td>Recompute diff_hash, read run-manifest. Fresh→commit with trailers; in-flight→"retry"; missing→manual-trigger. No LLM.</td>
+        <td>inline, blocking</td></tr>
+      <tr><td class="k">FileChanged <span style="color:var(--muted)">(optional)</span></td><td><span class="pill p-trigger">trigger</span></td>
+        <td>Writer's <code>intentions.yaml</code> write invalidates the read index. Cut if mtime-keyed lazy rebuild suffices (it does for MVP).</td>
+        <td>fire-and-forget</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout"><strong>Why the commit guard is required.</strong> The audit writer is the
+  <em>sole author</em> of commits — it is the only thing that stamps <code>Intent-Id</code> / <code>Intent-Path</code>
+  trailers. If the main agent commits manually, two invariants break at once: the Stop / SessionEnd committer finds
+  a <em>clean working tree with nothing left to commit</em>, and the manual commits enter history
+  <em>without trailers</em>, leaving permanent holes in the audit trail. The <code>PreToolUse</code> guard closes
+  this by denying commit-creating Bash commands and redirecting the agent to leave changes uncommitted. It is a
+  best-effort guard, not a sandbox — an agent that writes and runs a shell script could still slip a commit
+  through; the guard catches the direct invocations that matter in practice.</div>
+
+  <h2>3 · The planning-time read-injection</h2>
+  <p>The agent sees prior intent <em>before</em> it builds a plan, and decides what to do about it. No LLM call,
+  no MCP, no <code>git blame</code> walk — just a working-tree scan and a cached index lookup.</p>
+
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant U as User / agent prompt
+    participant H as inject_intent.py (UserPromptSubmit)
+    participant IDX as file→intent index (cached, mtime-keyed)
+    participant A as Coding agent
+
+    U->>H: prompt submitted
+    H->>H: git status --porcelain → working region
+    H->>IDX: rebuild only if intentions.yaml mtime changed
+    IDX-->>H: candidate intent records (code_home prefix match)
+    H->>H: assemble slice = target node + ancestors + recent Intent-Id hint
+    alt slice > 10k chars
+      H-->>A: additionalContext = spill-file path + 1-line summary
+    else
+      H-->>A: additionalContext = slice + "FLAG / REFINE / PASS-THROUGH"
+    end
+    Note over A: decision is ALWAYS allow — never blocks
+    A->>A: FLAG override to user · REFINE mapping · or PASS-THROUGH
+  </div>
+
+  <h2>4 · Offline write flow</h2>
+  <p>Triggered after edits settle; runs detached; idempotent on <code>diff_hash</code>; can crash without ever
+  touching the session or working tree.</p>
+
+  <div class="mermaid">
+sequenceDiagram
+    autonumber
+    participant PTB as PostToolBatch
+    participant L as writer_launcher (shim)
+    participant W as writer_agent (detached SDK)
+    participant T as 5 persist tools
+    participant S as .intent_audit store
+
+    PTB->>L: batch has Edit/Write
+    L->>L: append WAL · (re)arm 2s debounce
+    Note over L: returns instantly — session continues
+    L-->>W: debounce elapsed, no newer batch, none in-flight → spawn
+    W->>W: acquire .lock · compute diff_hash · read run-manifest
+    alt manifest complete for diff_hash
+      W-->>W: exit (idempotent)
+    else
+      W->>T: map→plan→evidence(pytest)→structure→record
+      T->>S: atomic temp+rename writes
+      W->>S: checkpoint each phase into run-manifest.json
+    end
+    Note over W: crash → release lock, partial manifest resumes next trigger
+  </div>
+
+  <h2>5 · Simplification delta</h2>
+  <p>All five phase sub-agents and the eleven analysis/research tools collapse into one offline writer; the five
+  remaining tools are demoted to dumb persist-only endpoints called <em>only</em> by that writer.</p>
+
+  <table>
+    <thead><tr><th>Component</th><th>Verdict</th><th>Where it goes</th></tr></thead>
+    <tbody>
+      <tr><td>intention-mapper, commit-planner, evidence-checker, structure-validator, session-recorder</td>
+        <td><span class="pill p-offline">moved offline</span></td><td>Five sequential phases inside one <code>writer_agent</code> pass.</td></tr>
+      <tr><td class="k">save_intentions · save_commit_plan · run_evidence_tests · save_structure_validation · save_session_record</td>
+        <td><span class="pill p-gate">kept</span></td><td>Demoted to persist-only (atomic write + model parse); no decision logic.</td></tr>
+      <tr><td class="k">cluster_commits · extract_implementation_requirements · synthesize_user_requirements · verify_intention_tree</td>
+        <td><span class="pill p-cut">cut</span></td><td>Bootstrap pipeline — logic becomes optional writer prompt phases.</td></tr>
+      <tr><td class="k">verify_intention_plan · generate_alignment_report · compute_drift_score · analyze_hunk_intents · get_tiered_context · validate_confidence</td>
+        <td><span class="pill p-cut">cut</span></td><td>Research add-ons (LPW/NeuroSync/ColaUntangle/HiAgent) — <span class="strike">surplus</span>; fold into config-gated writer passes if ever wanted.</td></tr>
+      <tr><td>932-line 5-phase Stop hook + 5-agent spawn orchestration</td>
+        <td><span class="pill p-cut">deleted</span></td><td>Replaced by a ~250-line deterministic run-manifest gate.</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout"><strong>Net:</strong> <code>16 tools → 5</code>, <code>16 agents → 1 offline writer</code>,
+  <code>5 in-hook LLM calls → 0</code>. Inline surface shrinks to one read-injector + one deterministic gate.
+  This honors the project constitution directly: <em>no surplus code, YAGNI, no compatibility shims</em>.</div>
+
+  <h2>6 · Migration steps</h2>
+  <ol>
+    <li>Add <code>inject_intent.py</code> (UserPromptSubmit): git-status region inference + mtime-keyed file→intent index, reusing <code>structure/boundary._path_within_prefixes</code>; emit <code>additionalContext</code> with FLAG/REFINE/PASS-THROUGH and &gt;10k spill. <code>decision</code> always allow.</li>
+    <li>Add <code>writer_launcher.py</code> (PostToolBatch + SessionEnd): WAL append, 2s debounce, in-flight <code>diff_hash</code> check, detached claude-agent-sdk spawn, bounded SessionEnd drain.</li>
+    <li>Author the single <code>writer_agent</code> prompt running the 5 phases in one pass, with run-manifest checkpointing and <code>diff_hash</code> idempotency (reuse <code>_compute_diff_hash</code>, <code>_get_artifact_dir</code>).</li>
+    <li>Demote the 5 surviving MCP tools to persist-only: strip gating/decision logic, keep atomic temp+rename writes via existing <code>models/</code>.</li>
+    <li>Rewrite <code>stop_hook.py</code> to the deterministic gate (three outcomes), reusing <code>commit_builder.build_commit_message</code> and the failure renderers. Delete the 5-phase spawn orchestration entirely.</li>
+    <li>Delete the 11 analysis/research MCP tools + their agent specs; fold any still-wanted logic into config-gated writer sections. No shims, no deprecated re-exports.</li>
+    <li>Add per-session <code>.lock</code>, <code>wal.jsonl</code>, <code>side_agent.log</code>, <code>run-manifest.json</code> to the store; keep <code>.intent_audit/</code> gitignored; durable audit = git trailers.</li>
+    <li>Replace 5-phase e2e tests with: (a) read-injection slice assertions, (b) offline writer idempotency/crash-resume, (c) the three Stop-gate outcomes. Update CLAUDE.md Hook Architecture to this design (canonical, present-tense).</li>
+  </ol>
+
+  <h2>7 · Risks &amp; trade-offs</h2>
+  <ul>
+    <li><strong>Eventual consistency:</strong> artifacts lag edits by debounce + writer runtime. A fast Stop right after a big edit hits "analysis in progress, retry" once. Mitigated by SessionEnd forced flush + bounded drain.</li>
+    <li><strong>Loss of synchronous enforcement:</strong> the gate guides + audits but no longer hard-blocks a coverage gap mid-edit. Acceptable per the "guidance + audit, not interruption" goal; a thin ledger check can be re-added if hard enforcement is truly needed (YAGNI for now).</li>
+    <li><strong>Detached-subprocess discipline:</strong> launcher must detach cleanly (no zombies) and SessionEnd must bound its drain so teardown never hangs.</li>
+    <li><strong>Crash between phases</strong> leaves a partial run-manifest; resume must be idempotent on <code>diff_hash</code> or the gate stays blocked. Mitigated by per-phase checkpointing.</li>
+    <li><strong>Heuristic region inference</strong> (git status + code_home) can pick an over-broad region → a less-relevant but never-blocking slice; the agent corrects on the next prompt.</li>
+    <li><strong>Retained machinery</strong> (.lock, WAL, run-manifest, atomic renames) is more parts than a pure-minimal design — justified <em>only</em> around the single offline writer where real concurrency exists, and kept off the inline read path entirely.</li>
+  </ul>
+
+  <p class="foot">Generated from a 7-agent design workflow (4 framing analysts → 2 independent proposals → synthesis),
+  grounded in the current Claude Code hook events (code.claude.com/docs/en/hooks, fetched 2026-06) and verified against
+  this repo. Diagrams render client-side via Mermaid.</p>
+
+</div>
+<script>
+  mermaid.initialize({
+    startOnLoad:true, theme:'dark',
+    flowchart:{ useMaxWidth:false, nodeSpacing:55, rankSpacing:70 },
+    sequence:{ useMaxWidth:false },
+    themeVariables:{ fontFamily:'-apple-system,Segoe UI,Roboto,sans-serif', fontSize:'14px',
+      primaryColor:'#1d2130', primaryTextColor:'#e6e8ee', lineColor:'#6ea8fe', clusterBkg:'#13161f',
+      clusterBorder:'#2a2f3d' }
+  });
+</script>
+</body>
+</html>
